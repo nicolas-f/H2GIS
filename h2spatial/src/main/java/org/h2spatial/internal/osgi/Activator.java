@@ -23,7 +23,7 @@
  * info_at_ orbisgis.org
  */
 
-package org.h2spatial.osgi;
+package org.h2spatial.internal.osgi;
 
 import org.h2.util.OsgiDataSourceFactory;
 import org.osgi.framework.BundleActivator;

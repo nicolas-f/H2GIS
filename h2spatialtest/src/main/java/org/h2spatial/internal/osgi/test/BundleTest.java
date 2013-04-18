@@ -23,7 +23,7 @@
  * info_at_ orbisgis.org
  */
 
-package org.h2spatial.osgi.test;
+package org.h2spatial.internal.osgi.test;
 
 import org.apache.felix.ipojo.junit4osgi.OSGiTestCase;
 import org.osgi.framework.ServiceReference;
@@ -57,9 +57,14 @@ public class BundleTest extends OSGiTestCase {
             ServiceReference ref = refs[0];
         try {
             Connection connection = getConnection((DataSourceFactory)getServiceObject(ref));
-            Statement stat = connection.createStatement();
-            stat.execute("DROP TABLE IF EXISTS POINT2D");
-            stat.execute("CREATE TABLE POINT2D (gid int , the_geom GEOMETRY)");
+            try {
+                Statement stat = connection.createStatement();
+                stat.execute("DROP TABLE IF EXISTS POINT2D");
+                stat.execute("CREATE TABLE POINT2D (gid int , the_geom GEOMETRY)");
+            } finally {
+                connection.close();
+            }
+            System.out.println("Table POINT2D created..");
         } finally {
             getContext().ungetService(ref);
         }

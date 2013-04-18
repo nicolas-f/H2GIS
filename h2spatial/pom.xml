@@ -67,9 +67,28 @@
                 <configuration>
                     <instructions>
                         <Private-Package>org.h2spatial.internal.*</Private-Package>
-                        <Bundle-Activator>org.h2spatial.osgi.Activator</Bundle-Activator>
+                        <Export-Package>org.h2spatial</Export-Package>
+                        <Bundle-Activator>org.h2spatial.internal.osgi.Activator</Bundle-Activator>
                         <Bundle-Vendor>IRSTV - FR CNRS 2488</Bundle-Vendor>
                         <Bundle-Category>JDBC</Bundle-Category>
+                        <Embed-Dependency>h2</Embed-Dependency>
+                        <_exportcontents>org.h2,org.h2.*,org.h2spatial</_exportcontents>
+                        <Import-Package>
+                            javax.transaction.xa;resolution:=optional,
+                            org.apache.lucene.analysis;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.analysis.standard;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.document;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.index;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.queryParser;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.search;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.store;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.apache.lucene.util;version="[3.0.0,3.1.0)";resolution:=optional,
+                            org.slf4j;resolution:=optional,
+                            javax.servlet;resolution:=optional,
+                            javax.servlet.http;resolution:=optional,
+                            javax.naming;resolution:=optional,
+                            javax.naming.spi;resolution:=optional,
+                            *</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
