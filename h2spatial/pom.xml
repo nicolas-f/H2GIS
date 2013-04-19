@@ -71,7 +71,7 @@
                         <Bundle-Activator>org.h2spatial.internal.osgi.Activator</Bundle-Activator>
                         <Bundle-Vendor>IRSTV - FR CNRS 2488</Bundle-Vendor>
                         <Bundle-Category>JDBC</Bundle-Category>
-                        <Embed-Dependency>h2</Embed-Dependency>
+                        <Embed-Dependency>h2;inline=true</Embed-Dependency>
                         <_exportcontents>org.h2,org.h2.*,org.h2spatial</_exportcontents>
                         <Import-Package>
                             javax.transaction.xa;resolution:=optional,
