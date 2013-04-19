@@ -25,12 +25,16 @@
 
 package org.h2spatial.internal.osgi.test;
 
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.io.WKBWriter;
 import org.apache.felix.ipojo.junit4osgi.OSGiTestCase;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.jdbc.DataSourceFactory;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
@@ -47,8 +51,15 @@ public class BundleTest extends OSGiTestCase {
         Properties properties = new Properties();
         properties.put("user","sa");
         properties.put("password","");
-        return driver.connect(DATABASE_PATH,properties);
+        Connection connection = driver.connect(DATABASE_PATH,properties);
+        connection.setAutoCommit(true);
+        return connection;
     }
+
+    /**
+     * Fetch the spatial service and open a connection
+     * @throws Exception
+     */
     public void testH2SpatialService() throws Exception {
         ServiceReference[] refs =  getContext().getServiceReferences(DataSourceFactory.class.getName(),
                 "(&(" + DataSourceFactory.OSGI_JDBC_DRIVER_NAME + "=H2Spatial))");
@@ -57,10 +68,34 @@ public class BundleTest extends OSGiTestCase {
             ServiceReference ref = refs[0];
         try {
             Connection connection = getConnection((DataSourceFactory)getServiceObject(ref));
+            connection.close();
+        } finally {
+            getContext().ungetService(ref);
+        }
+    }
+
+    /**
+     * Create and feed a spatial table, read a Geometry value
+     * @throws Exception
+     */
+    public void testCreateGeometryTable() throws Exception  {
+        ServiceReference[] refs =  getContext().getServiceReferences(DataSourceFactory.class.getName(),
+                "(&(" + DataSourceFactory.OSGI_JDBC_DRIVER_NAME + "=H2Spatial))");
+        assertNotNull(refs);
+        assertEquals(refs.length,1); // h2spatial service
+        ServiceReference ref = refs[0];
+        try {
+            Connection connection = getConnection((DataSourceFactory)getServiceObject(ref));
             try {
                 Statement stat = connection.createStatement();
                 stat.execute("DROP TABLE IF EXISTS POINT2D");
                 stat.execute("CREATE TABLE POINT2D (gid int , the_geom GEOMETRY)");
+                PreparedStatement insert = connection.prepareStatement("INSERT INTO POINT2D VALUES (?,?)");
+                insert.setInt(1,0);
+                GeometryFactory f = new GeometryFactory();
+                WKBWriter wkbWriter = new WKBWriter();
+                insert.setBytes(2,wkbWriter.write(f.createPoint(new Coordinate(5,8,15))));
+                insert.execute();
             } finally {
                 connection.close();
             }
