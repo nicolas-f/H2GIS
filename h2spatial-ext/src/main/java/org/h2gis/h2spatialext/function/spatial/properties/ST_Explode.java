@@ -36,6 +36,7 @@ import org.h2.tools.SimpleRowSource;
 import org.h2gis.h2spatialapi.DeterministicScalarFunction;
 import org.h2gis.h2spatialapi.ScalarFunction;
 import org.h2gis.utilities.SFSUtilities;
+import org.h2gis.utilities.SpatialResultSet;
 import org.h2gis.utilities.TableLocation;
 
 import java.sql.Connection;
@@ -77,6 +78,37 @@ public class ST_Explode extends DeterministicScalarFunction {
      */
     public static ResultSet explode(Connection connection, String tableName) throws SQLException {
         return explode(connection, tableName,null);
+    }
+
+    public static void explode(Connection conn,String tableName,String fieldName, String destination) throws SQLException {
+        Connection connection = SFSUtilities.wrapConnection(conn);
+        // Create destination table
+        StringBuilder fields = new StringBuilder();
+        SimpleResultSet rs = new SimpleResultSet();
+        ExplodeResultSet.copyFields(connection, rs, TableLocation.parse(tableName));
+        for(int colId = 1; colId < rs.getColumnCount(); colId++) {
+            if(fields.length()!=0) {
+                fields.append(", ");
+            }
+            fields.append(rs.getColumnName(colId));
+            fields.append(" ");
+            fields.append(rs.getColumnTypeName(colId));
+        }
+        connection.createStatement().execute(String.format("CREATE TABLE %s(%s)",tableName,fields.toString()));
+        SpatialResultSet rsIn = connection.createStatement().executeQuery("SELECT * FROM "+tableName).unwrap(SpatialResultSet.class);
+        try {
+            while(rsIn.next()) {
+                Queue<Geometry> geoms = new LinkedList<Geometry>();
+                Geometry geometry = rsIn.getGeometry(fieldName);
+                ExplodeResultSet.explode(geometry,geoms);
+                int explodeId = 0;
+                for(Geometry simpleGeom : geoms) {
+
+                }
+            }
+        } finally {
+            rsIn.close();
+        }
     }
 
     /**
@@ -137,14 +169,14 @@ public class ST_Explode extends DeterministicScalarFunction {
             }
         }
 
-        private void explode(final Geometry geometry) {
+        private static void explode(Geometry geometry, Queue<Geometry> result) {
             if (geometry instanceof GeometryCollection) {
                 final int nbOfGeometries = geometry.getNumGeometries();
                 for (int i = 0; i < nbOfGeometries; i++) {
-                    explode(geometry.getGeometryN(i));
+                    explode(geometry.getGeometryN(i), result);
                 }
             } else {
-                sourceRowGeometries.add(geometry);
+                result.add(geometry);
             }
         }
 
@@ -165,7 +197,7 @@ public class ST_Explode extends DeterministicScalarFunction {
             explodeId = 1;
             if(tableQuery.next()) {
                 Geometry geometry = (Geometry) tableQuery.getObject(spatialFieldIndex);
-                explode(geometry);
+                explode(geometry, sourceRowGeometries);
                 // If the geometry is empty, set empty field or null if generic geometry collection
                 if(sourceRowGeometries.isEmpty()) {
                     GeometryFactory factory = geometry.getFactory();
