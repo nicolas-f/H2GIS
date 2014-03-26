@@ -42,8 +42,8 @@ public class JDBCUtilitiesTest {
         connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE1,perstable");
         connection.createStatement().execute("CREATE TEMPORARY TABLE TEMPTABLE1");
         connection.createStatement().execute("CREATE TABLE perstable");
-        assertTrue(JDBCUtilities.isTemporaryTable(connection, TableLocation.parse("temptable1")));
-        assertFalse(JDBCUtilities.isTemporaryTable(connection, TableLocation.parse("PERSTable")));
+        assertTrue(JDBCUtilities.isTemporaryTable(connection, "temptable1"));
+        assertFalse(JDBCUtilities.isTemporaryTable(connection, "PERSTable"));
         connection.createStatement().execute("DROP TABLE TEMPTABLE1,perstable");
     }
 
@@ -57,6 +57,35 @@ public class JDBCUtilitiesTest {
         connection.createStatement().execute("INSERT INTO testschema.testRowCount VALUES (2, 0.2)");
         connection.createStatement().execute("INSERT INTO testschema.testRowCount VALUES (3, 0.5)");
         connection.createStatement().execute("INSERT INTO testschema.testRowCount VALUES (4, 0.6)");
-        assertEquals(4, JDBCUtilities.getRowCount(connection, "testschema.testRowCount"));
+        assertEquals(4, JDBCUtilities.getRowCount(connection, "TESTSCHEMA.TESTROWCOUNT"));
+    }
+
+    @Test
+    public void testPrimaryKeyExtract() throws SQLException {
+        connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE");
+        connection.createStatement().execute("CREATE TABLE TEMPTABLE(id integer primary key)");
+        assertEquals(1, JDBCUtilities.getIntegerPrimaryKey(connection.getMetaData(), "TEMPTABLE"));
+        connection.createStatement().execute("DROP SCHEMA IF EXISTS SCHEM");
+        connection.createStatement().execute("CREATE SCHEMA SCHEM");
+        connection.createStatement().execute("DROP TABLE IF EXISTS SCHEM.TEMPTABLE");
+        connection.createStatement().execute("CREATE TABLE SCHEM.TEMPTABLE(id integer primary key)");
+        connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE");
+        connection.createStatement().execute("CREATE TABLE TEMPTABLE(id varchar primary key)");
+        assertEquals(0, JDBCUtilities.getIntegerPrimaryKey(connection.getMetaData(), "TEMPTABLE"));
+        connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE");
+    }
+
+    @Test
+    public void testGetFieldNameFromIndex() throws SQLException {
+        connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE");
+        connection.createStatement().execute("CREATE TABLE TEMPTABLE(id integer, name varchar)");
+        assertEquals("ID", JDBCUtilities.getFieldName(connection.getMetaData(), "TEMPTABLE", 1));
+        assertEquals("NAME", JDBCUtilities.getFieldName(connection.getMetaData(), "TEMPTABLE", 2));
+        connection.createStatement().execute("DROP TABLE IF EXISTS TEMPTABLE");
+    }
+
+    @Test
+    public void isH2() throws SQLException {
+        assertTrue(JDBCUtilities.isH2DataBase(connection.getMetaData()));
     }
 }
