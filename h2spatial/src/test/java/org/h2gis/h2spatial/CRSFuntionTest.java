@@ -27,9 +27,12 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
 import java.sql.Connection;
 import java.sql.Statement;
+
+import org.h2.value.ValueGeometry;
 import org.h2gis.h2spatial.ut.SpatialH2UT;
 import org.junit.AfterClass;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -84,11 +87,9 @@ public class CRSFuntionTest {
     public void testST_Transform27572to3857() throws Exception {
         Statement st = connection.createStatement();
         st.execute("CREATE TABLE init AS SELECT ST_GeomFromText('POINT(282331 2273699.7)', 27572) as the_geom;");
-        WKTReader wKTReader = new WKTReader();
-        Geometry targetGeom = wKTReader.read("POINT(-208496.537435372 6005369.87702729)");
         SpatialResultSet srs = st.executeQuery("SELECT ST_TRANSFORM(the_geom, 3857) from init;").unwrap(SpatialResultSet.class);
         assertTrue(srs.next());
-        assertTrue(srs.getGeometry(1).equalsExact(targetGeom, 0.01));
+        assertEquals(ValueGeometry.get("POINT(-208496.537435372 6005369.87702729)").getGeometry(), srs.getGeometry(1));
         st.execute("DROP TABLE IF EXISTS init;");
     }
     
