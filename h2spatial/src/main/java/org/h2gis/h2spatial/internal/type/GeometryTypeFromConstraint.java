@@ -65,10 +65,6 @@ public class GeometryTypeFromConstraint extends DeterministicScalarFunction {
         if(constraint.isEmpty() && numericPrecision > GeometryTypeCodes.GEOMETRYZM) {
             return GeometryTypeCodes.GEOMETRY;
         }
-        // Use Domain given parameters
-        if(numericPrecision <= GeometryTypeCodes.GEOMETRYZM) {
-            return numericPrecision;
-        }
         // Use user defined constraint. Does not work with VIEW TABLE
         Matcher matcher = TYPE_CODE_PATTERN.matcher(constraint);
         if(matcher.find()) {

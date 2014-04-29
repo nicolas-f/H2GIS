@@ -208,7 +208,7 @@ public class CreateSpatialExtension {
         Statement st = connection.createStatement();
         for(DomainInfo domainInfo : getBuiltInsType()) {
             // Check for byte array first, to not throw an enigmatic error CastException
-            st.execute("CREATE DOMAIN IF NOT EXISTS "+domainInfo.getDomainName()+" AS "+GEOMETRY_BASE_TYPE+"("+domainInfo.getGeometryTypeCode()+") CHECK (ST_GeometryTypeCode(VALUE) = "+domainInfo.getGeometryTypeCode()+");");
+            st.execute("CREATE DOMAIN IF NOT EXISTS "+domainInfo.getDomainName()+" AS "+GEOMETRY_BASE_TYPE+" CHECK (ST_GeometryTypeCode(VALUE) = "+domainInfo.getGeometryTypeCode()+");");
         }
     }
 
