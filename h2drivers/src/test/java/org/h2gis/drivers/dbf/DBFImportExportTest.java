@@ -25,6 +25,7 @@
 package org.h2gis.drivers.dbf;
 
 import org.h2gis.drivers.dbf.internal.DBFDriver;
+import org.h2gis.drivers.dbf.internal.DbaseFileHeader;
 import org.h2gis.drivers.shp.SHPEngineTest;
 import org.h2gis.h2spatial.CreateSpatialExtension;
 import org.h2gis.h2spatial.ut.SpatialH2UT;
@@ -80,6 +81,7 @@ public class DBFImportExportTest {
         dbfDriver.initDriverFromFile(dbfFile);
         assertEquals(3, dbfDriver.getFieldCount());
         assertEquals(2, dbfDriver.getRowCount());
+        assertEquals(50, dbfDriver.getDbaseFileHeader().getFieldLength(2));
         Object[] row = dbfDriver.getRow(0);
         assertEquals(1, row[0]);
         assertEquals(4.9406564584124654, (Double) row[1], 1e-12);
@@ -127,5 +129,37 @@ public class DBFImportExportTest {
         assertEquals(28469.778049948833, rs.getDouble(1), 1e-12);
         rs.close();
         st.execute("drop table WATERNETWORK");
+    }
+
+    @Test
+    public void testStringLength() throws Exception {
+        Statement st = connection.createStatement();
+        st.execute("DROP TABLE IF EXISTS TOTO;" +
+                "CREATE CACHED TABLE PUBLIC.TOTO(" +
+                "    THE_GEOM GEOMETRY," +
+                "    OSM_ID CHAR(11)," +
+                "    NAME CHAR(48)," +
+                "    TYPE_OBJ CHAR(16)," +
+                "    WIDTH BIGINT" +
+                ");     \n" +
+                "INSERT INTO PUBLIC.TOTO(THE_GEOM, OSM_ID, NAME, TYPE_OBJ, WIDTH) VALUES\n" +
+                "(X'00000000050000000100000000020000000641539b81a033f81541501050c2d2297241539b82876cf8e64150104f3fc4e51" +
+                "a41539b84099ed7134150104be401534141539b8473eba6d54150104a183d1fdf41539b85331f646f4150103cc981d34741539b" +
+                "8414101d7e41501033f859de94'::Geometry, '5369251', STRINGDECODE('M\\u00e4t\\u00e4joki'), 'stream', 0),\n" +
+                "(X'00000000050000000100000000020000000241539b9fa9dd222041500ffd53c62b8041539b9b09530b5541500ff2db311567'" +
+                "::Geometry, '5369270', STRINGDECODE('M\\u00e4t\\u00e4joki'), 'stream', 0),\n" +
+                "(X'00000000050000000100000000020000000241539b9fef14d24e4150102505e99bc041539ba1d368116c4150102128c5fd7c'" +
+                "::Geometry, '5369285', STRINGDECODE('M\\u00e4t\\u00e4joki'), 'stream', 0);    \n");
+        File dbfFile = new File("target/testStringLength.dbf");
+        st.execute("CALL DBFWrite('"+dbfFile+"', 'TOTO')");
+        // Read this shape file to check values
+        assertTrue(dbfFile.exists());
+        DBFDriver dbfDriver = new DBFDriver();
+        dbfDriver.initDriverFromFile(dbfFile);
+        DbaseFileHeader header = dbfDriver.getDbaseFileHeader();
+        assertEquals(4, header.getNumFields());
+        assertEquals(11, header.getFieldLength(0));
+        assertEquals(48, header.getFieldLength(1));
+        assertEquals(16, header.getFieldLength(2));
     }
 }
