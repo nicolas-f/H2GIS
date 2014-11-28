@@ -5,7 +5,7 @@ category: h2drivers
 is_function: true
 description: Table &rarr; SHP
 prev_section: SHPRead
-next_section: ST_AsGeoJson
+next_section: OSMRead
 permalink: /docs/dev/SHPWrite/
 ---
 
