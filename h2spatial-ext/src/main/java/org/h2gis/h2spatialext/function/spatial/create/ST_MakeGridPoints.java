@@ -19,6 +19,8 @@ package org.h2gis.h2spatialext.function.spatial.create;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
+import com.vividsolutions.jts.geom.Geometry;
 import org.h2.value.Value;
 import org.h2.value.ValueGeometry;
 import org.h2.value.ValueString;
@@ -66,7 +68,7 @@ public class ST_MakeGridPoints extends AbstractFunction implements ScalarFunctio
             return gridRowSet.getResultSet();
         } else if (value instanceof ValueGeometry) {
             ValueGeometry geom = (ValueGeometry) value;
-            GridRowSet gridRowSet = new GridRowSet(connection, deltaX, deltaY, geom.getGeometry().getEnvelopeInternal());
+            GridRowSet gridRowSet = new GridRowSet(connection, deltaX, deltaY, ((Geometry)geom.getObject()).getEnvelopeInternal());
             gridRowSet.setCenterCell(true);
             return gridRowSet.getResultSet();
         } else {

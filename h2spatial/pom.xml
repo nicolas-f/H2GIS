@@ -37,7 +37,7 @@
     </dependency>
     <dependency>
       <groupId>${h2-package}</groupId>
-      <artifactId>h2</artifactId>
+      <artifactId>${h2-artifact}</artifactId>
       <version>${h2-version}</version>
     </dependency>
     <dependency>

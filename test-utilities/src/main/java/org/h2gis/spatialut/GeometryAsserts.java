@@ -85,8 +85,8 @@ public class GeometryAsserts {
             assertNull(valueObject);
         } else {
             ValueGeometry expected = ValueGeometry.get(expectedWKT, expectedSRID);
-            ValueGeometry actual = ValueGeometry.getFromGeometry(valueObject);
-            assertEquals("Expected:\n" + expected.getWKT() + "\nActual:\n" + actual.getWKT(), expected, actual);
+            ValueGeometry actual = ValueGeometry.tryGet(valueObject);
+            assertEquals("Expected:\n" + expected.getString() + "\nActual:\n" + actual.getString(), expected, actual);
         }
     }
     /**
@@ -129,7 +129,7 @@ public class GeometryAsserts {
      */
     public static void assertGeometryBarelyEquals(String expectedWKT,int expectedSRID, Object resultSetObject, double epsilon) {
         assertTrue(resultSetObject instanceof Geometry);
-        Geometry expectedGeometry = ValueGeometry.get(expectedWKT, expectedSRID).getGeometry();
+        Geometry expectedGeometry = (Geometry)ValueGeometry.get(expectedWKT, expectedSRID).getObject();
         Geometry result = (Geometry) resultSetObject;
         assertEquals(expectedGeometry.getGeometryType(), result.getGeometryType());
         assertEquals(expectedGeometry.getNumPoints(), result.getNumPoints());

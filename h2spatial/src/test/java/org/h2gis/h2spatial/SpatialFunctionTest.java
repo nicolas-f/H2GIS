@@ -299,8 +299,8 @@ public class SpatialFunctionTest {
         ResultSet rs = st.executeQuery("SELECT ST_Envelope(ST_GeomFromText('LINESTRING(1 1,5 5)', 27572))");
         try {
             assertTrue(rs.next());
-            assertEquals(ValueGeometry.getFromGeometry(ST_GeomFromText.toGeometry("POLYGON ((1 1, 1 5, 5 5, 5 1, 1 1))", 27572)),
-                    ValueGeometry.getFromGeometry(rs.getObject(1)));
+            assertEquals(ValueGeometry.tryGet(ST_GeomFromText.toGeometry("POLYGON ((1 1, 1 5, 5 5, 5 1, 1 1))", 27572)),
+                    ValueGeometry.tryGet(rs.getObject(1)));
         } finally {
             rs.close();
         }
