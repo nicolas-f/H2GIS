@@ -1,28 +1,25 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.utilities;
 
 import com.vividsolutions.jts.geom.Envelope;
@@ -172,7 +169,7 @@ public class SFSUtilities {
             }
             geometryField = geometryFields.get(0);
         }
-        ResultSet rs = connection.createStatement().executeQuery("SELECT ST_Extent("+geometryField+") ext FROM "+location);
+        ResultSet rs = connection.createStatement().executeQuery("SELECT ST_Extent("+TableLocation.quoteIdentifier(geometryField)+") ext FROM "+location);
         if(rs.next()) {
             // Todo under postgis it is a BOX type
             return ((Geometry)rs.getObject(1)).getEnvelopeInternal();
@@ -296,6 +293,26 @@ public class SFSUtilities {
             }
         }
         return fieldsName;
+    }   
+    
+
+    /**
+     * Find the first geometry field name of a resultSet. Return -1 if there is
+     * no geometry column
+     *
+     * @param resultSet
+     * @return The index of first Geometry field
+     * @throws SQLException
+     */
+    public static int getFirstGeometryFieldIndex(ResultSet resultSet) throws SQLException {
+        ResultSetMetaData meta = resultSet.getMetaData();
+        int columnCount = meta.getColumnCount();
+        for (int i = 1; i <= columnCount; i++) {
+            if (meta.getColumnTypeName(i).equalsIgnoreCase("geometry")) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -354,5 +371,106 @@ public class SFSUtilities {
             }
         }
         return aggregatedEnvelope;
+    }
+    
+    /**
+     * Return the srid of the first geometry column of the input table
+     * @param connection
+     * @param table
+     * @return
+     * @throws SQLException 
+     */
+    public static int getSRID(Connection connection, TableLocation table) throws SQLException {
+        ResultSet geomResultSet = getGeometryColumnsView(connection, table.getCatalog(), table.getSchema(), table.getTable());
+        int srid = 0;
+        while (geomResultSet.next()) {
+            srid = geomResultSet.getInt("srid");
+            break;
+        }
+        geomResultSet.close();
+        return srid;
+    }
+    
+    /**
+     * Return the srid of a table for a given field name.
+     * @param connection
+     * @param table
+     * @param fieldName
+     * @return
+     * @throws SQLException 
+     */
+    public static int getSRID(Connection connection, TableLocation table, String fieldName) throws SQLException {
+        ResultSet geomResultSet = getGeometryColumnsView(connection, table.getCatalog(), table.getSchema(), table.getTable());
+        int srid = 0;
+        while (geomResultSet.next()) {
+            if (geomResultSet.getString("f_geometry_column").equals(fieldName)) {
+                srid = geomResultSet.getInt("srid");
+                break;
+            }
+        }
+        geomResultSet.close();
+        return srid;
+    }
+    
+    /**
+     * Return an array of two string that correspond to the authority name
+     * and its SRID code.
+     * If the SRID does not exist return the array {null, null}
+     * @param connection
+     * @param table
+     * @param fieldName
+     * @return
+     * @throws SQLException 
+     */
+    public static String[] getAuthorityAndSRID(Connection connection, TableLocation table, String fieldName) throws SQLException{
+        ResultSet geomResultSet = getGeometryColumnsView(connection, table.getCatalog(), table.getSchema(), table.getTable());
+        int srid = 0;
+        while (geomResultSet.next()) {
+            if (geomResultSet.getString("f_geometry_column").equals(fieldName)) {
+                srid = geomResultSet.getInt("srid");
+                break;
+            }
+        }
+        geomResultSet.close();
+        String authority = null;
+        String sridCode = null;
+        if (srid != 0) {
+            StringBuilder sb = new StringBuilder("SELECT AUTH_NAME FROM ");
+            sb.append("PUBLIC.SPATIAL_REF_SYS ").append(" WHERE SRID = ?");
+            PreparedStatement ps = connection.prepareStatement(sb.toString());
+            ps.setInt(1, srid);
+            ResultSet rs = null;
+            try {
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    authority = rs.getString(1);
+                    sridCode=String.valueOf(srid);
+                }
+                
+            } finally {
+                if (rs != null) {
+                    rs.close();
+                }
+                ps.close();
+            }
+        }
+        return new String[]{authority, sridCode};
+    }
+    
+    
+    /**
+     * Alter a table to add a SRID constraint.
+     * The srid must be greater than zero.
+     * 
+     * @param connection
+     * @param tableLocation
+     * @param srid
+     * @throws SQLException 
+     */
+    public static void addTableSRIDConstraint(Connection connection, TableLocation tableLocation, int srid) throws SQLException {
+        //Alter table to set the SRID constraint
+        if (srid > 0) {
+            connection.createStatement().execute(String.format("ALTER TABLE %s ADD CONSTRAINT enforce_srid_geom CHECK ST_SRID(the_geom)= %d", tableLocation.toString(), srid));
+        }
     }
 }

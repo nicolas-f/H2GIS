@@ -4,14 +4,14 @@
     <groupId>org.orbisgis</groupId>
     <artifactId>h2gis</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.2.3-SNAPSHOT</version>
     <name>H2GIS</name>
     <description>H2GIS is a spatial extension of the H2 database engine in the spirit of PostGIS.  It adds support for the Open Geospatial Consortium (OGC) Simple Features for SQL (SFSQL) functions.</description>
     <organization>
-        <name>IRSTV CNRS-FR-2488</name>
-        <url>http://www.irstv.fr/</url>
+        <name>CNRS</name>
+        <url>http://www.orbisgis.org</url>
     </organization>
-    <url>http://github.com/irstv/H2GIS</url>
+    <url>http://github.com/orbisgis/H2GIS</url>
     <licenses>
         <license>
             <name>GNU General Public License (GPLV3+)</name>
@@ -31,22 +31,22 @@
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <stagingDirectory>${project.build.directory}/staging/${project.version}</stagingDirectory>
         <!-- Dependency versions -->
         <maven-bundle-plugin-version>2.3.7</maven-bundle-plugin-version>
         <osgi-core-version>4.3.1</osgi-core-version>
-        <h2-version>1.3.176</h2-version>
+        <h2-version>1.4.186</h2-version>
         <h2-package>com.h2database</h2-package>
         <org.osgi.compendium-version>4.3.1</org.osgi.compendium-version>
         <jts-version>1.13</jts-version>
         <sl4j-version>1.6.0</sl4j-version>
         <cts-version>1.3.3</cts-version>
-        <jdelaunay-version>0.5.3</jdelaunay-version>
-        <junit-version>4.11</junit-version>
+        <junit-version>4.12</junit-version>
     </properties>
     <scm>
-        <connection>scm:git:https://github.com/irstv/H2GIS.git</connection>
-        <developerConnection>scm:git:https://github.com/irstv/H2GIS.git</developerConnection>
-        <url>git@github.com:irstv/H2GIS.git</url>
+        <connection>scm:git:https://github.com/orbisgis/H2GIS.git</connection>
+        <developerConnection>scm:git:https://github.com/orbisgis/H2GIS.git</developerConnection>
+        <url>git@github.com:orbisgis/H2GIS.git</url>
     </scm>
     <profiles>
         <profile>
@@ -94,15 +94,15 @@
     <developers>
         <developer>
             <name>Nicolas Fortin</name>
-            <organization>IRSTV CNRS-FR-2488</organization>
+            <organization>CNRS-FR-2488</organization>
         </developer>
         <developer>
             <name>Erwan Bocher</name>
-            <organization>IRSTV CNRS-FR-2488</organization>
+            <organization>CNRS-FR-2488</organization>
         </developer>
         <developer>
             <name>Adam Gouge</name>
-            <organization>IRSTV CNRS-FR-2488</organization>
+            <organization>CNRS-FR-2488</organization>
         </developer>
     </developers>
     <parent>

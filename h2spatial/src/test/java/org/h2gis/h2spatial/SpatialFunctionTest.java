@@ -1,25 +1,24 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier
- * SIG" team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly: info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.h2spatial;
 
@@ -33,7 +32,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -57,11 +55,8 @@ public class SpatialFunctionTest {
         // Keep a connection alive to not close the DataBase on each unit test
         connection = SpatialH2UT.createSpatialDataBase(DB_NAME);
         // Set up test data
-        URL sqlURL = SpatialFunctionTest.class.getResource("ogc_conformance_test3.sql");
-        URL sqlURL2 = SpatialFunctionTest.class.getResource("spatial_index_test_data.sql");
-        Statement st = connection.createStatement();
-        st.execute("RUNSCRIPT FROM '" + sqlURL + "'");
-        st.execute("RUNSCRIPT FROM '" + sqlURL2 + "'");
+        OGCConformance1Test.executeScript(connection, "ogc_conformance_test3.sql");
+        OGCConformance1Test.executeScript(connection, "spatial_index_test_data.sql");
     }
 
     @AfterClass
@@ -124,7 +119,37 @@ public class SpatialFunctionTest {
         Statement st = connection.createStatement();
         ResultSet rs = st.executeQuery("SELECT ST_Accum(footprint) FROM buildings GROUP BY SUBSTRING(address,4)");
         assertTrue(rs.next());
-        assertEquals("GEOMETRYCOLLECTION (POLYGON ((50 31, 54 31, 54 29, 50 29, 50 31)), POLYGON ((66 34, 62 34, 62 32, 66 32, 66 34)))", rs.getString(1));
+        assertEquals("MULTIPOLYGON (((50 31, 54 31, 54 29, 50 29, 50 31)), ((66 34, 62 34, 62 32, 66 32, 66 34)))", rs.getString(1));
+        rs.close();
+    }
+
+    @Test
+    public void test_ST_AccumPoint() throws Exception {
+        Statement st = connection.createStatement();
+        ResultSet rs = st.executeQuery("SELECT ST_Accum('MULTIPOINT((0 0), (1 1))'::geometry)");
+        assertTrue(rs.next());
+        assertEquals("MULTIPOINT ((0 0), (1 1))", rs.getString(1));
+        rs.close();
+    }
+
+    @Test
+    public void test_ST_AccumLine() throws Exception {
+        Statement st = connection.createStatement();
+        ResultSet rs = st.executeQuery("SELECT ST_Accum('GEOMETRYCOLLECTION(LINESTRING(0 0, 1 1),LINESTRING(5 5, 8 8))'::geometry)");
+        assertTrue(rs.next());
+        assertEquals("MULTILINESTRING ((0 0, 1 1), (5 5, 8 8))", rs.getString(1));
+        rs.close();
+    }
+
+    @Test
+    public void test_ST_AccumCollection() throws Exception {
+        Statement st = connection.createStatement();
+        st.execute("DROP TABLE IF EXISTS TESTACCUMCOLLECT;" +
+                "CREATE TABLE TESTACCUMCOLLECT AS SELECT 'MULTIPOLYGON (((50 31, 54 31, 54 29, 50 29, 50 31))," +
+                " ((66 34, 62 34, 62 32, 66 32, 66 34)))'::geometry the_geom");
+        ResultSet rs = st.executeQuery("SELECT ST_Accum(the_geom) FROM TESTACCUMCOLLECT");
+        assertTrue(rs.next());
+        assertEquals("MULTIPOLYGON (((50 31, 54 31, 54 29, 50 29, 50 31)), ((66 34, 62 34, 62 32, 66 32, 66 34)))", rs.getString(1));
         rs.close();
     }
 
@@ -521,5 +546,21 @@ public class SpatialFunctionTest {
             assertTrue(e.getMessage().contains(ST_PointFromText.TYPE_ERROR + "LineString"));
             throw originalCause;
         }
+    }
+    
+    @Test
+    public void test_ST_PointFromWKB1() throws SQLException {
+        Statement st = connection.createStatement();
+        ResultSet rs = st.executeQuery("SELECT ST_PointFromWKB(ST_AsBinary('POINT(0 10)'::GEOMETRY))");
+        rs.next();
+        assertEquals("POINT (0 10)", rs.getString(1));
+        assertFalse(rs.next());
+        rs.close();
+    }
+    
+    @Test(expected = SQLException.class)
+    public void test_ST_PointFromWKB2() throws Throwable {
+        Statement st = connection.createStatement();
+        st.executeQuery("SELECT ST_PointFromWKB(ST_AsBinary('LINESTRING(0 10, 10 10)'::GEOMETRY));");
     }
 }

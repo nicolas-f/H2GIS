@@ -4,7 +4,7 @@
     <parent>
         <artifactId>h2gis</artifactId>
         <groupId>org.orbisgis</groupId>
-        <version>1.1.1-SNAPSHOT</version>
+        <version>1.2.3-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
     <artifactId>h2spatial-ext</artifactId>
@@ -55,15 +55,16 @@
     </properties>
     <dependencies>
         <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${sl4j-version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit-version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.orbisgis</groupId>
-            <artifactId>jdelaunay</artifactId>
-            <version>${jdelaunay-version}</version>
         </dependency>
         <dependency>
             <groupId>com.vividsolutions</groupId>
@@ -99,6 +100,11 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>spatial-utilities</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>poly2tri-core</artifactId>
+            <version>0.1.2</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>

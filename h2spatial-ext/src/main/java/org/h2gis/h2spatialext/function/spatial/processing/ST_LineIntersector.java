@@ -1,20 +1,25 @@
-/*
- * Copyright (C) 2014 IRSTV CNRS-FR-2488
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * H2GIS is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.h2spatialext.function.spatial.processing;
 
 import com.vividsolutions.jts.algorithm.RobustLineIntersector;
@@ -28,23 +33,30 @@ import com.vividsolutions.jts.noding.IntersectionAdder;
 import com.vividsolutions.jts.noding.MCIndexNoder;
 import com.vividsolutions.jts.noding.NodedSegmentString;
 import com.vividsolutions.jts.noding.SegmentString;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import org.h2gis.h2spatialapi.DeterministicScalarFunction;
 
 /**
- * LineCleaner is used to split an input geometry (LineString or MultiLineString) by
+ * LineIntersector is used to split an input geometry (LineString or MultiLineString) by
  * a set of geometries. 
  * @author Erwan Bocher
  */
-public class ST_LineIntersector extends  DeterministicScalarFunction{
+public class ST_LineIntersector extends  DeterministicScalarFunction{   
+    
     
     
     private static final RobustLineIntersector ROBUST_INTERSECTOR = new RobustLineIntersector();
     
-     @Override
+    public ST_LineIntersector() {
+        addProperty(PROP_REMARKS, "Split an input geometry by another geometry. \n"
+                + "This function uses a more robust intersection algorithm than the ST_Split function.\n"
+                + "It computes the intersections between the line segments of the input geometries."
+                + "A collection of LineString is returned.");
+    }
+    
+    @Override
     public String getJavaStaticMethod() {
         return "lineIntersector";
     }
@@ -56,6 +68,9 @@ public class ST_LineIntersector extends  DeterministicScalarFunction{
      * @return 
      */
     public static Geometry lineIntersector(Geometry inputLines, Geometry clipper) throws IllegalArgumentException {
+        if(inputLines == null||clipper == null){
+            return null;
+        }
         if(inputLines.getDimension()==1){
         MCIndexNoder mCIndexNoder = new MCIndexNoder();
         mCIndexNoder.setSegmentIntersector(new IntersectionAdder(ROBUST_INTERSECTOR));        

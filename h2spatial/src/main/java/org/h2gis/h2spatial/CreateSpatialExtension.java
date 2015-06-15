@@ -1,30 +1,29 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.h2spatial;
 
 import org.h2.api.Aggregate;
+import org.h2.tools.RunScript;
 import org.h2gis.h2spatial.internal.function.HexToVarBinary;
 import org.h2gis.h2spatial.internal.function.spatial.convert.ST_AsWKT;
 import org.h2gis.h2spatial.internal.function.spatial.crs.ST_SetSRID;
@@ -61,16 +60,20 @@ import org.h2gis.h2spatial.internal.type.*;
 import org.h2gis.h2spatialapi.Function;
 import org.h2gis.h2spatialapi.ScalarFunction;
 
-import java.net.URL;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import org.h2gis.h2spatial.internal.function.spatial.convert.ST_PointFromWKB;
 
 import org.h2gis.h2spatial.internal.function.spatial.crs.ST_Transform;
 import org.h2gis.h2spatial.internal.function.spatial.predicates.ST_OrderingEquals;
 import org.h2gis.utilities.GeometryTypeCodes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Add spatial features to an H2 database
@@ -87,6 +90,7 @@ import org.h2gis.utilities.GeometryTypeCodes;
 public class CreateSpatialExtension {
     /** H2 base type for geometry column {@link java.sql.ResultSetMetaData#getColumnTypeName(int)} */
     public static final String GEOMETRY_BASE_TYPE = "GEOMETRY";
+    private static final Logger LOGGER = LoggerFactory.getLogger(CreateSpatialExtension.class);
 
     /**
      * @return instance of all built-ins functions
@@ -159,7 +163,8 @@ public class CreateSpatialExtension {
                 new ST_CoordDim(),
                 new ST_GeometryTypeCode(),
                 new ST_OrderingEquals(),
-                new ST_Is3D()};
+                new ST_Is3D(),
+                new ST_PointFromWKB()};
     }
 
     /**
@@ -193,6 +198,7 @@ public class CreateSpatialExtension {
     /**
      * Register GEOMETRY type and register spatial functions
      * @param connection Active H2 connection
+     * @throws java.sql.SQLException
      */
     public static void initSpatialExtension(Connection connection) throws SQLException {
         addSpatialFunctions(connection,"");
@@ -216,6 +222,7 @@ public class CreateSpatialExtension {
     /**
      * Register view in order to create GEOMETRY_COLUMNS standard table.
      * @param connection Open connection
+     * @throws java.sql.SQLException
      */
     public static void registerSpatialTables(Connection connection) throws SQLException {
         Statement st = connection.createStatement();
@@ -228,8 +235,15 @@ public class CreateSpatialExtension {
                 " from INFORMATION_SCHEMA.COLUMNS WHERE TYPE_NAME = 'GEOMETRY'");
         ResultSet rs = connection.getMetaData().getTables("","PUBLIC","SPATIAL_REF_SYS",null);
         if(!rs.next()) {
-            URL resource = CreateSpatialExtension.class.getResource("spatial_ref_sys.sql");
-            st.execute(String.format("RUNSCRIPT FROM '%s'",resource));
+        	InputStreamReader reader = new InputStreamReader(
+					CreateSpatialExtension.class.getResourceAsStream("spatial_ref_sys.sql"));
+			RunScript.execute(connection, reader);
+				
+			try {
+				reader.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
         }
     }
 
@@ -282,7 +296,12 @@ public class CreateSpatialExtension {
             ScalarFunction scalarFunction = (ScalarFunction)function;
             String functionName = scalarFunction.getJavaStaticMethod();
             if(dropAlias) {
-                st.execute("DROP ALIAS IF EXISTS " + functionAlias);
+                try {
+                    st.execute("DROP ALIAS IF EXISTS " + functionAlias);
+                } catch (SQLException ex) {
+                    // Ignore, some tables constraints may depend on this function
+                    LOGGER.debug(ex.getLocalizedMessage(), ex);
+                }
             }
             String deterministic = "";
             if(getBooleanProperty(function,ScalarFunction.PROP_DETERMINISTIC,false)) {
