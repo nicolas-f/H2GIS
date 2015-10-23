@@ -59,11 +59,6 @@ public class ST_Band extends DeterministicScalarFunction{
         RasterUtils.RasterMetaData metadata = rast.getMetaData();
 
         RasterUtils.RasterBandMetaData[] inputBands = metadata.bands;
-        
-        if(bandIndexes.length>inputBands.length){
-             throw new IllegalArgumentException("The number of band indexes doesn't match the number of bands in the raster.\n"
-                     + "The raster contains "+ inputBands.length+ "band(s).");
-        }
 
         int inputBandsNumb = inputBands.length;
         RasterUtils.RasterBandMetaData[] newBands = new RasterUtils.RasterBandMetaData[bandIndexes.length];
