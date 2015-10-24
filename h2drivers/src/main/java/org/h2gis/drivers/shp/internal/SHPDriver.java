@@ -1,39 +1,41 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.drivers.shp.internal;
 
 import com.vividsolutions.jts.geom.Geometry;
 import org.h2gis.drivers.FileDriver;
 import org.h2gis.drivers.dbf.internal.DBFDriver;
 import org.h2gis.drivers.dbf.internal.DbaseFileHeader;
+import org.h2gis.drivers.utility.FileUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Merge ShapeFileReader and DBFReader.
@@ -57,6 +59,8 @@ public class SHPDriver implements FileDriver {
     private IndexFile shxFileReader;
     private int geometryFieldIndex = 0;
     private ShapeType shapeType;
+    public File prjFile;
+    private int srid =0;
 
     /**
      * @param geometryFieldIndex The geometry field index in getRow() array.
@@ -65,6 +69,12 @@ public class SHPDriver implements FileDriver {
         this.geometryFieldIndex = geometryFieldIndex;
     }
 
+    /**
+     * Insert values in the row
+     * @param values
+     * @throws IOException 
+     */
+    @Override
     public void insertRow(Object[] values) throws IOException {
         if(!(values[geometryFieldIndex] instanceof Geometry)) {
             if(values[geometryFieldIndex]==null) {
@@ -135,22 +145,11 @@ public class SHPDriver implements FileDriver {
         this.shpFile = shpFile;
         File dbfFile = null;
         // Find appropriate file extension for shx and dbf, maybe SHX or Shx..
-        String shxFileName = shpFile.getName();
-        String nameWithoutExt = shxFileName.substring(0,shxFileName.lastIndexOf('.'));
-        File[] filesInParentFolder = shpFile.getParentFile().listFiles();
-        if(filesInParentFolder != null) {
-            for(File otherFile : filesInParentFolder) {
-                String otherFileName = otherFile.getName();
-                if(otherFileName.startsWith(nameWithoutExt + ".")) {
-                    String fileExt =  otherFileName.substring(otherFileName.lastIndexOf(".") + 1);
-                    if(fileExt.equalsIgnoreCase("shx")) {
-                        shxFile = otherFile;
-                    } else if(fileExt.equalsIgnoreCase("dbf")) {
-                        dbfFile = otherFile;
-                    }
-                }
-            }
-        }
+        Map<String, File> matchExt = FileUtil.fetchFileByIgnoreCaseExt(shpFile.getParentFile(), FileUtil.getBaseName(shpFile),
+                "shx", "dbf", "prj");
+        shxFile = matchExt.get("shx");
+        dbfFile = matchExt.get("dbf");
+        prjFile = matchExt.get("prj");
         if(dbfFile != null) {
             dbfDriver.initDriverFromFile(dbfFile, forceEncoding);
         } else {
@@ -208,11 +207,31 @@ public class SHPDriver implements FileDriver {
         if(geometryFieldIndex > 0) {
             System.arraycopy(dbfValues, 0, values, 0, geometryFieldIndex);
         }
-        values[geometryFieldIndex] = shapefileReader.geomAt(shxFileReader.getOffset((int)rowId));
+        Geometry geom = shapefileReader.geomAt(shxFileReader.getOffset((int)rowId));
+        geom.setSRID(getSrid());
+        values[geometryFieldIndex] = geom;
         // Copy dbf values after geometryFieldIndex
         if(geometryFieldIndex < dbfValues.length) {
             System.arraycopy(dbfValues, geometryFieldIndex, values, geometryFieldIndex + 1, dbfValues.length);
         }
         return values;
     }
+
+    /**
+     * Set a SRID code that will be used for geometries.
+     * @param srid 
+     */
+    public void setSRID(int srid) {
+        this.srid=srid;
+    }
+
+    /**
+     * Get the SRID code
+     * @return 
+     */
+    public int getSrid() {
+        return srid;
+    }
+    
+    
 }

@@ -1,26 +1,24 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.gpx.model;
 
@@ -44,14 +42,20 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param wayPointsTableName
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createWayPointsTable(Connection connection, String wayPointsTableName) throws SQLException {
+    public static PreparedStatement createWayPointsTable(Connection connection, String wayPointsTableName, boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(wayPointsTableName);
-        sb.append(" (the_geom POINT,id INT,");
+        if (isH2) {
+            sb.append(" (the_geom POINT CHECK ST_SRID(THE_GEOM) = 4326,");
+        } else {
+             sb.append("GEOMETRY(POINT, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.LAT.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.LON.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.ELE.toLowerCase()).append(" DOUBLE,");
@@ -90,14 +94,20 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param routeTableName
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createRouteTable(Connection connection, String routeTableName) throws SQLException {
+    public static PreparedStatement createRouteTable(Connection connection, String routeTableName, boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(routeTableName);
-        sb.append(" (the_geom LineString,id INT,");
+        if (isH2) {
+            sb.append(" (the_geom LINESTRING CHECK ST_SRID(THE_GEOM) = 4326,");
+        } else {
+            sb.append("GEOMETRY(LINESTRING, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.NAME.toLowerCase()).append(" TEXT,");
         sb.append(GPXTags.CMT.toLowerCase()).append(" TEXT,");
         sb.append(GPXTags.DESC.toLowerCase()).append(" TEXT,");
@@ -124,14 +134,20 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param routePointsTable
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createRoutePointsTable(Connection connection, String routePointsTable) throws SQLException {
+    public static PreparedStatement createRoutePointsTable(Connection connection, String routePointsTable,boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(routePointsTable);
-        sb.append(" (the_geom POINT,id INT, ");
+        if (isH2) {
+            sb.append(" (the_geom POINT CHECK ST_SRID(THE_GEOM) = 4326,");
+        } else {
+            sb.append("GEOMETRY(POINT, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.LAT.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.LON.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.ELE.toLowerCase()).append(" DOUBLE,");
@@ -172,14 +188,20 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param trackTableName
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createTrackTable(Connection connection, String trackTableName) throws SQLException {
+    public static PreparedStatement createTrackTable(Connection connection, String trackTableName,boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(trackTableName);
-        sb.append(" (the_geom MultiLineString,id INT,");
+        if (isH2) {
+            sb.append(" (the_geom MULTILINESTRING CHECK ST_SRID(THE_GEOM) = 4326,");
+        } else {
+            sb.append("GEOMETRY(MULTILINESTRING, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.NAME.toLowerCase()).append(" TEXT,");
         sb.append(GPXTags.CMT.toLowerCase()).append(" TEXT,");
         sb.append(GPXTags.DESC.toLowerCase()).append(" TEXT,");
@@ -206,14 +228,20 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param trackSegementsTableName
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createTrackSegmentsTable(Connection connection, String trackSegementsTableName) throws SQLException {
+    public static PreparedStatement createTrackSegmentsTable(Connection connection, String trackSegementsTableName,boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(trackSegementsTableName);
-        sb.append(" (the_geom LINESTRING,id INT,");
+        if (isH2) {
+            sb.append(" (the_geom LINESTRING CHECK ST_SRID(THE_GEOM) = 4326,");
+        } else {
+            sb.append("GEOMETRY(LINESTRING, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.EXTENSIONS).append(" TEXT,");
         sb.append("id_track INT);");
         stmt.execute(sb.toString());
@@ -233,14 +261,21 @@ public class GPXTablesFactory {
      *
      * @param connection
      * @param trackPointsTableName
+     * @param isH2 set true if it's an H2 database
      * @return
      * @throws SQLException
      */
-    public static PreparedStatement createTrackPointsTable(Connection connection, String trackPointsTableName) throws SQLException {
+    public static PreparedStatement createTrackPointsTable(Connection connection, String trackPointsTableName,boolean isH2) throws SQLException {
         Statement stmt = connection.createStatement();
         StringBuilder sb = new StringBuilder("CREATE TABLE ");
         sb.append(trackPointsTableName);
-        sb.append(" (the_geom POINT,id INT, ");
+        if(isH2){
+        sb.append(" (the_geom POINT CHECK ST_SRID(THE_GEOM) = 4326,");
+        }
+        else{
+            sb.append("GEOMETRY(POINT, 4326)");
+        }
+        sb.append(" id INT,");
         sb.append(GPXTags.LAT.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.LON.toLowerCase()).append(" DOUBLE,");
         sb.append(GPXTags.ELE.toLowerCase()).append(" DOUBLE,");

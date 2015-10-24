@@ -1,7 +1,30 @@
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
+ *
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
+ *
+ * H2GIS is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
+ */
 package org.h2gis.drivers.gpx.model;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.Point;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
@@ -64,7 +87,9 @@ public abstract class AbstractGpxParserRte extends AbstractGpxParser {
             GPXPoint routePoint = new GPXPoint(GpxMetadata.RTEPTFIELDCOUNT);
             try {
                 Coordinate coordinate = GPXCoordinate.createCoordinate(attributes);
-                routePoint.setValue(GpxMetadata.THE_GEOM, getGeometryFactory().createPoint(coordinate));
+                Point geom = getGeometryFactory().createPoint(coordinate);
+                geom.setSRID(4326);
+                routePoint.setValue(GpxMetadata.THE_GEOM, geom);
                 routePoint.setValue(GpxMetadata.PTLAT, coordinate.y);
                 routePoint.setValue(GpxMetadata.PTLON, coordinate.x);
                 routePoint.setValue(GpxMetadata.PTELE, coordinate.z);
@@ -104,6 +129,7 @@ public abstract class AbstractGpxParserRte extends AbstractGpxParser {
             // If there are more than one routepoint, we can set a geometry to the route
             if (rteList.size() > 1) {
                 LineString geometry = getGeometryFactory().createLineString(rteArray);
+                geometry.setSRID(4326);
                 getCurrentLine().setGeometry(geometry);
             }
             // if </rte> markup is found, the currentLine is added in the table rtedbd and the default contentHandler is setted.

@@ -1,26 +1,24 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 
 package org.h2gis.osgi.test;
@@ -29,6 +27,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.io.WKTReader;
+import org.h2gis.h2spatialext.CreateSpatialExtension;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,6 +35,7 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.Configuration;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.PaxExam;
+import org.ops4j.pax.exam.options.UrlProvisionOption;
 import org.ops4j.pax.exam.spi.reactors.ExamReactorStrategy;
 import org.ops4j.pax.exam.spi.reactors.PerClass;
 import org.osgi.framework.Bundle;
@@ -44,10 +44,24 @@ import org.osgi.framework.BundleException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.jdbc.DataSourceFactory;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import javax.inject.Inject;
 import javax.sql.DataSource;
+import java.awt.image.BufferedImage;
 import java.io.File;
-import java.sql.*;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import static org.junit.Assert.*;
 import static org.ops4j.pax.exam.CoreOptions.*;
@@ -61,32 +75,55 @@ import static org.ops4j.pax.exam.CoreOptions.*;
 public class BundleTest {
     @Inject
     BundleContext context;
-    private static final String DB_FILE_PATH = "target/test-resources/dbH2";
+    private static final String DB_FILE_PATH = new File("target/test-resources/dbH2").getAbsolutePath();
     private static final String DATABASE_PATH = "jdbc:h2:"+DB_FILE_PATH;
     private DataSource dataSource;
     private ServiceReference<DataSourceFactory> ref;
+    private File bundleFolder = new File("target/bundle");
 
     @Configuration
-    public Option[] config() {
-        return options(systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("WARN"),
-                mavenBundle("org.osgi", "org.osgi.compendium"),
-                mavenBundle("org.orbisgis", "h2spatial-api"),
-                mavenBundle("org.orbisgis", "spatial-utilities"),
-                mavenBundle("org.orbisgis", "cts").version("1.3.3"),
-                mavenBundle("org.orbisgis", "jts"),
-                mavenBundle("org.orbisgis", "jdelaunay"),
-                mavenBundle("com.h2database", "h2").version("1.3.176"),
-                mavenBundle("com.fasterxml.jackson.core", "jackson-core").version("2.3.1"),
-                mavenBundle("org.orbisgis", "h2spatial").noStart(),
-                mavenBundle("org.orbisgis", "h2spatial-ext").noStart(),
-                mavenBundle("org.orbisgis", "h2drivers").noStart(),
-                mavenBundle("org.orbisgis", "h2spatial-osgi"),
-                mavenBundle("org.orbisgis", "h2spatial-ext-osgi"),
-                mavenBundle("org.orbisgis", "java-network-analyzer").version("0.1.6"),
-                mavenBundle("org.jgrapht", "jgrapht-core").version("0.9.0"),
-                mavenBundle("org.orbisgis", "h2network").noStart(),
-                junitBundles());
+    public Option[] config() throws MalformedURLException {
+        List<Option> options = new ArrayList<Option>();
+        options.addAll(Arrays.asList(systemProperty("org.ops4j.pax.logging.DefaultServiceLog.level").value("WARN"),
+                getBundle("org.osgi.compendium"),
+                getBundle("h2spatial-api"),
+                getBundle("spatial-utilities"),
+                getBundle("cts"),
+                getBundle("jts"),
+                getBundle("poly2tri-core"),
+                getBundle("h2"),
+                getBundle("jackson-core"),
+                getBundle("h2spatial").noStart(),
+                getBundle("h2spatial-ext").noStart(),
+                getBundle("h2drivers").noStart(),
+                getBundle("h2spatial-osgi"),
+                getBundle("h2spatial-ext-osgi"),
+                getBundle("java-network-analyzer"),
+                getBundle("jgrapht-core"),
+                getBundle("commons-compress"),
+                getBundle("h2network").noStart(),
+                junitBundles()));
+        //options.addAll(getBundles());
+        return options(options.toArray(new Option[options.size()]));
     }
+
+    private UrlProvisionOption getBundle(String bundleName) throws MalformedURLException {
+        return bundle(new File(bundleFolder, bundleName+".jar").toURI().toURL().toString());
+    }
+
+    private List<Option> getBundles() {
+        List<Option> bundles = new ArrayList<Option>();
+        File bundleFolder = new File("target/bundle");
+        for(File bundle : bundleFolder.listFiles()) {
+            try {
+                bundles.add(bundle(bundle.toURI().toURL().toString()).noStart());
+            } catch (MalformedURLException ex) {
+                // Ignore
+            }
+        }
+        return bundles;
+    }
+
     /**
      * Create data source
      */
@@ -103,9 +140,15 @@ public class BundleTest {
         if(context.getServiceReference(DataSource.class.getName())==null) {
             // First UnitTest
             // Delete database
-            File dbFile = new File(DB_FILE_PATH+".h2.db");
+            File dbFile = new File(DB_FILE_PATH+".mv.db");
             if(dbFile.exists()) {
                 assertTrue(dbFile.delete());
+            }
+            Connection connection = dataSource.getConnection();
+            try {
+                CreateSpatialExtension.initSpatialExtension(connection);
+            } finally {
+                connection.close();
             }
             context.registerService(DataSource.class.getName(), dataSource, null);
         }
@@ -304,6 +347,48 @@ public class BundleTest {
             rs.close();
             stat.execute("drop table area");
             stat.execute("drop table roads");
+        } finally {
+            connection.close();
+        }
+    }
+
+    /**
+     * SPI and OSGi need to be configured to work together. This integration test check if H2 provided services are
+     * seen by OSGi.
+     * https://aries.apache.org/modules/spi-fly.html#usage
+     * @throws Exception
+     */
+    @Test
+    public void test_RasterSPIMechanism() throws Exception {
+        Connection connection = getConnection();
+        try {
+            // Store Image as WKB Raster
+            Statement st = connection.createStatement();
+            st.execute("DROP TABLE IF EXISTS RASTERTEST");
+            st.execute("CREATE TABLE RASTERTEST(ID SERIAL, RAST RASTER);");
+            PreparedStatement pst = connection.prepareStatement("INSERT INTO RASTERTEST(RAST) VALUES" +
+                    "(ST_RasterFromImage(?, -1024, -1024, 1, -1, 0, 0, 27572))");
+            InputStream is = BundleTest.class.getResourceAsStream("austr.jpg");
+            try {
+                pst.setBinaryStream(1, is);
+                pst.execute();
+            } finally {
+                is.close();
+            }
+            // Read image using ImageIO SPI mechanism
+            ResultSet rs = st.executeQuery("SELECT RAST FROM RASTERTEST");
+            assertTrue(rs.next());
+            ImageInputStream iis = ImageIO.createImageInputStream(rs.getBlob(1));
+            assertNotNull(iis);
+            Iterator<ImageReader> imageReaderIterator = ImageIO.getImageReaders(iis);
+            assertNotNull(imageReaderIterator);
+            assertTrue(imageReaderIterator.hasNext());
+            ImageReader wkbReader = imageReaderIterator.next();
+            wkbReader.setInput(iis);
+            BufferedImage im = wkbReader.read(wkbReader.getMinIndex());
+            assertNotNull(im);
+            assertEquals(2048, im.getWidth());
+            assertEquals(2048, im.getHeight());
         } finally {
             connection.close();
         }

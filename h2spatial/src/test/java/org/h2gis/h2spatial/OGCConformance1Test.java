@@ -1,41 +1,42 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.h2spatial;
 
+import org.h2.tools.RunScript;
 import org.h2gis.h2spatial.ut.SpatialH2UT;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.net.URL;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+
 import static org.junit.Assert.*;
 
 /**
@@ -51,9 +52,7 @@ public class OGCConformance1Test {
         // Keep a connection alive to not close the DataBase on each unit test
         connection = SpatialH2UT.createSpatialDataBase(DB_NAME, false);
         // Set up test data
-        URL sqlURL = OGCConformance1Test.class.getResource("ogc_conformance_test.sql");
-        Statement st = connection.createStatement();
-        st.execute("RUNSCRIPT FROM '"+sqlURL+"'");
+        executeScript(connection, "ogc_conformance_test.sql");
     }
 
     /**
@@ -182,7 +181,7 @@ public class OGCConformance1Test {
         Statement st = connection.createStatement();
         ResultSet rs = st.executeQuery("SELECT srtext FROM SPATIAL_REF_SYS WHERE SRID = 101;");
         assertTrue(rs.next());
-        assertEquals("PROJCS[\"UTM_ZONE_14N\", GEOGCS[\"World Geodetic System\n\n72\",DATUM[\"WGS_72\", " +
+        osIndepentendAssertEquals("PROJCS[\"UTM_ZONE_14N\", GEOGCS[\"World Geodetic System\n\n72\",DATUM[\"WGS_72\", " +
                 "ELLIPSOID[\"NWL_10D\", 6378135,\n\n298.26]],PRIMEM[\"Greenwich\",\n\n0],UNIT[\"Meter\",1.0]]," +
                 "PROJECTION[\"Transverse_Mercator\"],\n\nPARAMETER[\"False_Easting\", 500000.0]," +
                 "PARAMETER[\"False_Northing\",\n\n0.0],PARAMETER[\"Central_Meridian\", -99.0],PARAMETER[\"Scale_Factor\"" +
@@ -192,5 +191,23 @@ public class OGCConformance1Test {
     @AfterClass
     public static void tearDown() throws Exception {
         connection.close();
+    }
+    
+    static void executeScript(Connection connection, String fileName) throws SQLException
+    {
+    	 InputStreamReader reader = new InputStreamReader(
+ 				OGCConformance1Test.class.getResourceAsStream(fileName));
+ 		RunScript.execute(connection, reader);
+
+ 		try {
+ 			reader.close();
+ 		} catch (IOException e) {
+ 			e.printStackTrace();
+ 		}
+    }
+    
+    static boolean osIndepentendAssertEquals(String expected, String actual)
+    {
+    	return actual.replaceAll("\r\n", "\n").replaceAll("\r", "\n").equals(expected);
     }
 }

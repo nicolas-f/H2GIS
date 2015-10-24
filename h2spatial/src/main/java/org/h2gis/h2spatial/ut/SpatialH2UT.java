@@ -1,28 +1,25 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.h2spatial.ut;
 
 import org.h2.util.OsgiDataSourceFactory;
@@ -30,7 +27,10 @@ import org.h2gis.h2spatial.CreateSpatialExtension;
 import org.osgi.service.jdbc.DataSourceFactory;
 
 import javax.sql.DataSource;
+
+import java.awt.dnd.DnDConstants;
 import java.io.File;
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -43,8 +43,8 @@ import java.util.Properties;
  */
 public class SpatialH2UT {
 
-    private static final String H2_PARAMETERS = ";LOCK_MODE=0;LOG=0;DB_CLOSE_DELAY=5"; //;DEFAULT_TABLE_ENGINE=org.h2.mvstore.db.MVTableEngine;LOCK_MODE=0;LOG=0";
-    //private static final String H2_PARAMETERS = ";DEFAULT_TABLE_ENGINE=org.h2.mvstore.db.MVTableEngine;LOCK_MODE=0;LOG=0";
+    public static final String H2_PARAMETERS = ";LOCK_MODE=0;LOG=0;DB_CLOSE_DELAY=5";
+
     private SpatialH2UT() {
         // utility
     }
@@ -68,28 +68,46 @@ public class SpatialH2UT {
      * Create a spatial database
      * @param dbName filename
      * @return Connection
-     * @throws Exception
+     * @throws java.sql.SQLException
+     * @throws java.lang.ClassNotFoundException
      */
     public static Connection createSpatialDataBase(String dbName)throws SQLException, ClassNotFoundException {
         return createSpatialDataBase(dbName,true);
     }
+
     private static String getDataBasePath(String dbName) {
-        return "target/test-resources/dbH2"+dbName;
+        if(dbName.startsWith("file://")) {
+            return new File(URI.create(dbName)).getAbsolutePath();
+        } else {
+            return new File("target/test-resources/dbH2" + dbName).getAbsolutePath();
+        }
+    }
+
+    /**
+     * Create a database and return a DataSource
+     * @param dbName DataBase name, or path URI
+     * @param initSpatial True to enable basic spatial capabilities
+     * @return DataSource
+     * @throws SQLException
+     */
+    public static DataSource createDataSource(String dbName ,boolean initSpatial) throws SQLException {
+        return createDataSource(dbName, initSpatial, H2_PARAMETERS);
     }
 
     /**
      * Create a database and return a DataSource
      * @param dbName
      * @param initSpatial
+     * @param h2Parameters
      * @return
      * @throws SQLException
      */
-    public static DataSource createDataSource(String dbName ,boolean initSpatial) throws SQLException {
+    public static DataSource createDataSource(String dbName ,boolean initSpatial, String h2Parameters) throws SQLException {
         // Create H2 memory DataSource
         org.h2.Driver driver = org.h2.Driver.load();
         OsgiDataSourceFactory dataSourceFactory = new OsgiDataSourceFactory(driver);
         Properties properties = new Properties();
-        String databasePath = initDBFile(dbName);
+        String databasePath = initDBFile(dbName, h2Parameters);
         properties.setProperty(DataSourceFactory.JDBC_URL, databasePath);
         properties.setProperty(DataSourceFactory.JDBC_USER, "sa");
         properties.setProperty(DataSourceFactory.JDBC_PASSWORD, "sa");
@@ -105,11 +123,15 @@ public class SpatialH2UT {
         }
         return dataSource;
     }
-
-    private static String initDBFile( String dbName ) {
+    private static String initDBFile( String dbName, String h2_PARAMETERS ) {
         String dbFilePath = getDataBasePath(dbName);
-        File dbFile = new File(dbFilePath +".h2.db");
-        String databasePath = "jdbc:h2:"+ dbFilePath + H2_PARAMETERS;
+        File dbFile = new File(dbFilePath +".mv.db");
+        String databasePath = "jdbc:h2:"+ dbFilePath + h2_PARAMETERS;
+        if(dbFile.exists()) {
+            dbFile.delete();
+        }
+        
+        dbFile = new File(dbFilePath +".mv.db");
         if(dbFile.exists()) {
             dbFile.delete();
         }
@@ -120,11 +142,13 @@ public class SpatialH2UT {
      * Create a spatial database
      * @param dbName filename
      * @param initSpatial If true add spatial features to the database
+     * @param h2Parameters Additional h2 parameters
      * @return Connection
-     * @throws Exception
+     * @throws java.sql.SQLException
+     * @throws java.lang.ClassNotFoundException
      */
-    public static Connection createSpatialDataBase(String dbName,boolean initSpatial)throws SQLException, ClassNotFoundException {
-        String databasePath = initDBFile(dbName);
+    public static Connection createSpatialDataBase(String dbName,boolean initSpatial, String h2Parameters )throws SQLException, ClassNotFoundException {
+        String databasePath = initDBFile(dbName, h2Parameters);
         org.h2.Driver.load();
         // Keep a connection alive to not close the DataBase on each unit test
         Connection connection = DriverManager.getConnection(databasePath,
@@ -138,5 +162,16 @@ public class SpatialH2UT {
             CreateSpatialExtension.initSpatialExtension(connection);
         }
         return connection;
+    }
+    /**
+     * Create a spatial database
+     * @param dbName filename
+     * @param initSpatial If true add spatial features to the database
+     * @return Connection
+     * @throws java.sql.SQLException
+     * @throws java.lang.ClassNotFoundException
+     */
+    public static Connection createSpatialDataBase(String dbName, boolean initSpatial )throws SQLException, ClassNotFoundException {
+        return createSpatialDataBase(dbName, initSpatial, H2_PARAMETERS);
     }
 }
