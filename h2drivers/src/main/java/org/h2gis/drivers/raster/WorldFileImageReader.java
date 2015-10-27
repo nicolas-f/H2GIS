@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.media.jai.JAI;
+import javax.media.jai.PlanarImage;
+import javax.media.jai.RenderedOp;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -190,18 +193,16 @@ public class WorldFileImageReader {
                 }
             } else {
                 // Convert the image to WKB Raster locally then transfer the bytes
-                RandomAccessFile raf = new RandomAccessFile(imageFile, "r");
-                ImageInputStream imageInputStream = ImageIO.createImageInputStream(raf);
+                RenderedOp input = null;
                 try {
-                    Iterator<ImageReader> readerIterator = ImageIO.getImageReaders(imageInputStream);
-                    if(readerIterator == null || !readerIterator.hasNext()) {
-                        throw new SQLException("Could not find image reader for "+imageFile);
+                    try {
+                        input = JAI.create("fileload", imageFile.getAbsolutePath());
+                    } catch (Exception ex) {
+                        // ImageIO throw IllegalArgument or other unspecified exception
+                        throw new SQLException("Could not find image reader for "+imageFile, ex);
                     }
-                    ImageReader imageReader = readerIterator.next();
-                    imageReader.setInput(imageInputStream);
-                    RenderedImageReader renderedImageReader = new RenderedImageReader(imageReader);
                     GeoRaster geoRaster = GeoRasterRenderedImage
-                            .create(renderedImageReader, scaleX, scaleY, upperLeftX, upperLeftY, skewX, skewY, srid,
+                            .create(input, scaleX, scaleY, upperLeftX, upperLeftY, skewX, skewY, srid,
                                     Double.NaN);
                     InputStream wkbStream = geoRaster.asWKBRaster();
                     try {
@@ -213,7 +214,9 @@ public class WorldFileImageReader {
                     }
                 } finally {
                     stmt.close();
-                    imageInputStream.close();
+                    if(input != null) {
+                        input.dispose();
+                    }
                 }
             }
         } catch (FileNotFoundException ex) {
