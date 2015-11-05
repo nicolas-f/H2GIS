@@ -1,28 +1,25 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.drivers.shp;
 
 import com.vividsolutions.jts.geom.Geometry;
@@ -35,7 +32,9 @@ import org.h2gis.h2spatial.ut.SpatialH2UT;
 import org.h2gis.utilities.GeometryTypeCodes;
 import org.h2gis.utilities.SFSUtilities;
 import org.h2gis.utilities.TableLocation;
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -46,6 +45,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -258,11 +259,115 @@ public class SHPEngineTest {
         st.execute("drop table shptable");
     }
 
-    @Test(expected = SQLException.class)
+    @Test
     public void testAddIndexOnTableLink() throws SQLException {
         Statement st = connection.createStatement();
         st.execute("DROP TABLE IF EXISTS shptable");
         st.execute("CALL FILE_TABLE("+ StringUtils.quoteStringSQL(SHPEngineTest.class.getResource("waternetwork.shp").getPath()) + ", 'shptable');");
+        String explainWithoutIndex;
+        ResultSet rs = st.executeQuery("EXPLAIN SELECT * FROM SHPTABLE WHERE THE_GEOM && ST_BUFFER('POINT(183541 2426015)', 15)");
+        try{
+            assertTrue(rs.next());
+            explainWithoutIndex = rs.getString(1);
+        } finally {
+            rs.close();
+        }
+        // Query plan test with index
         st.execute("CREATE SPATIAL INDEX ON shptable(the_geom)");
+        rs = st.executeQuery("EXPLAIN SELECT * FROM SHPTABLE WHERE THE_GEOM && ST_BUFFER('POINT(183541 2426015)', 15)");
+        try{
+            assertTrue(rs.next());
+            assertNotEquals(explainWithoutIndex, rs.getString(1));
+        } finally {
+            rs.close();
+        }
+        // Execute query using index
+        rs = st.executeQuery("SELECT PK FROM SHPTABLE WHERE THE_GEOM && ST_BUFFER('POINT(183541 2426015)', 15) ORDER BY PK");
+        try{
+            assertTrue(rs.next());
+            assertEquals(128, rs.getLong(1));
+            assertTrue(rs.next());
+            assertEquals(326, rs.getLong(1));
+            assertFalse(rs.next());
+        } finally {
+            rs.close();
+        }
+        // Check if the index is here
+        rs = st.executeQuery("select * from INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = 'SHPTABLE' and COLUMN_NAME='THE_GEOM'");
+        try {
+            assertTrue(rs.next());
+            assertEquals("org.h2.index.SpatialTreeIndex", rs.getString("INDEX_CLASS"));
+        } finally {
+            rs.close();
+        }
+        st.execute("DROP TABLE IF EXISTS shptable");
+        // Check if the index has been removed
+        rs = st.executeQuery("select * from INFORMATION_SCHEMA.INDEXES WHERE TABLE_NAME = 'SHPTABLE' and COLUMN_NAME='THE_GEOM'");
+        try {
+            assertFalse(rs.next());
+        } finally {
+            rs.close();
+        }
+    }
+
+    /**
+     * Check the call of special case {@link H2TableIndex#find(org.h2.engine.Session, org.h2.result.SearchRow, org.h2.result.SearchRow)} with null at first and last
+     * @throws SQLException
+     */
+    @Test
+    public void readSHPOrderDataTest() throws SQLException {
+        Statement st = connection.createStatement();
+        st.execute("drop table if exists shptable");
+        st.execute("CALL FILE_TABLE('"+SHPEngineTest.class.getResource("waternetwork.shp").getPath()+"', 'SHPTABLE');");
+        // Query declared Table columns
+        ResultSet rs = st.executeQuery("SELECT * FROM shptable order by PK limit 8");
+        assertTrue(rs.next());
+        assertEquals(1, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(2, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(3, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(4, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(5, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(6, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(7, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(8, rs.getInt("gid"));
+        rs.close();
+        st.execute("drop table shptable");
+    }
+
+    /**
+     * Check the call of special case {@link H2TableIndex#find(org.h2.engine.Session, org.h2.result.SearchRow, org.h2.result.SearchRow)} with null at last part only.
+     * @throws SQLException
+     */
+    @Test
+    public void readSHPFilteredOrderDataTest() throws SQLException {
+        Statement st = connection.createStatement();
+        st.execute("drop table if exists shptable");
+        st.execute("CALL FILE_TABLE('"+SHPEngineTest.class.getResource("waternetwork.shp").getPath()+"', 'SHPTABLE');");
+        //
+        ResultSet rs = st.executeQuery("EXPLAIN SELECT * FROM shptable where PK >=4 order by PK limit 5");
+        assertTrue(rs.next());
+        Assert.assertThat(rs.getString(1), CoreMatchers.containsString("PUBLIC.\"SHPTABLE.PK_INDEX_1\": PK >= 4"));
+        rs.close();
+        // Query declared Table columns
+        rs = st.executeQuery("SELECT * FROM shptable where PK >=4 order by PK limit 5");
+        assertTrue(rs.next());
+        assertEquals(4, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(5, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(6, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(7, rs.getInt("gid"));
+        assertTrue(rs.next());
+        assertEquals(8, rs.getInt("gid"));
+        rs.close();
+        st.execute("drop table shptable");
     }
 }

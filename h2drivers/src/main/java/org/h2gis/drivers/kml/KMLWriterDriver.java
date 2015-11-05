@@ -1,26 +1,24 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2012 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.kml;
 
@@ -45,6 +43,7 @@ import java.util.zip.ZipOutputStream;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import org.h2gis.drivers.utility.FileUtil;
 import org.h2gis.h2spatialapi.ProgressVisitor;
 import org.h2gis.utilities.JDBCUtilities;
 import org.h2gis.utilities.SFSUtilities;
@@ -74,21 +73,23 @@ public class KMLWriterDriver {
      * @param progress
      * @throws SQLException
      */
-    public void write(ProgressVisitor progress) throws SQLException {
-        String path = fileName.getAbsolutePath();
-        String extension = "";
-        int i = path.lastIndexOf('.');
-        if (i >= 0) {
-            extension = path.substring(i + 1);
-        }
-        if (extension.equalsIgnoreCase("kml")) {
-            writeKML(progress);
-        } else if (extension.equalsIgnoreCase("kmz")) {
-            String name = fileName.getName();
-            int pos = name.lastIndexOf(".");
-            writeKMZ(progress, name.substring(0, pos) + ".kml");
+    public void write(ProgressVisitor progress) throws SQLException {        
+        if (FileUtil.isExtensionWellFormated(fileName, "kml")) {
+            if (!fileName.exists()) {
+                writeKML(progress);
+            } else {
+                throw new SQLException("The file " + fileName.getPath() + " already exists.");
+            }
+        } else if (FileUtil.isExtensionWellFormated(fileName, "kmz")) {
+            if (!fileName.exists()) {
+                String name = fileName.getName();
+                int pos = name.lastIndexOf(".");
+                writeKMZ(progress, name.substring(0, pos) + ".kml");
+            } else {
+                throw new SQLException("The file " + fileName.getPath() + " already exists.");
+            }
         } else {
-            throw new SQLException("Please kml or kmz extension.");
+            throw new SQLException("Please use the extensions .kml or kmz.");
         }
     }
 
@@ -143,6 +144,14 @@ public class KMLWriterDriver {
                 }
             } catch (IOException ex) {
                 throw new SQLException(ex);
+            } finally {
+                try {
+                    if (zos != null) {
+                        zos.close();
+                    }
+                } catch (IOException ex) {
+                    throw new SQLException(ex);
+                }
             }
         }
 
@@ -167,7 +176,7 @@ public class KMLWriterDriver {
             final XMLOutputFactory streamWriterFactory = XMLOutputFactory.newFactory();
             streamWriterFactory.setProperty("escapeCharacters", false);
             XMLStreamWriter xmlOut = streamWriterFactory.createXMLStreamWriter(
-                    new BufferedOutputStream(outputStream));
+                    new BufferedOutputStream(outputStream), "UTF-8");
             xmlOut.writeStartDocument("UTF-8", "1.0");
             xmlOut.writeStartElement("kml");
             xmlOut.writeDefaultNamespace("http://www.opengis.net/kml/2.2");

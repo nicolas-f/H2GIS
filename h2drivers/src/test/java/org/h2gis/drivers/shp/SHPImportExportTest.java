@@ -1,30 +1,30 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.shp;
 
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.io.WKTWriter;
 import org.h2.util.StringUtils;
 import org.h2gis.drivers.DriverManager;
 import org.h2gis.drivers.file_table.H2TableIndex;
@@ -43,6 +43,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import org.h2gis.drivers.dbf.DBFRead;
+import org.h2gis.drivers.dbf.DBFWrite;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -61,6 +63,8 @@ public class SHPImportExportTest {
         connection = SpatialH2UT.createSpatialDataBase(DB_NAME);
         CreateSpatialExtension.registerFunction(connection.createStatement(), new SHPRead(), "");
         CreateSpatialExtension.registerFunction(connection.createStatement(), new SHPWrite(), "");
+        CreateSpatialExtension.registerFunction(connection.createStatement(), new DBFWrite(), "");
+        CreateSpatialExtension.registerFunction(connection.createStatement(), new DBFRead(), "");
     }
 
     @AfterClass
@@ -97,13 +101,13 @@ public class SHPImportExportTest {
     @Test
     public void exportTableTestGeomDeb() throws SQLException, IOException {
         Statement stat = connection.createStatement();
-        File shpFile = new File("target/area_export.shp");
+        File shpFile = new File("target/area_export1.shp");
         stat.execute("DROP TABLE IF EXISTS AREA");
         stat.execute("create table area(the_geom POLYGON, idarea int primary key)");
         stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
         stat.execute("insert into area values('POLYGON ((90 109, 190 109, 190 9, 90 9, 90 109))', 2)");
         // Create a shape file using table area
-        stat.execute("CALL SHPWrite('target/area_export.shp', 'AREA')");
+        stat.execute("CALL SHPWrite('target/area_export1.shp', 'AREA')");
         // Read this shape file to check values
         assertTrue(shpFile.exists());
         SHPDriver shpDriver = new SHPDriver();
@@ -184,13 +188,13 @@ public class SHPImportExportTest {
     @Test
     public void exportTableWithoutConstraint() throws SQLException, IOException {
         Statement stat = connection.createStatement();
-        File shpFile = new File("target/area_export.shp");
+        File shpFile = new File("target/area_export2.shp");
         stat.execute("DROP TABLE IF EXISTS AREA");
         stat.execute("create table area(the_geom GEOMETRY, idarea int primary key)");
         stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
         stat.execute("insert into area values('POLYGON ((90 109, 190 109, 190 9, 90 9, 90 109))', 2)");
         // Create a shape file using table area
-        stat.execute("CALL SHPWrite('target/area_export.shp', 'AREA')");
+        stat.execute("CALL SHPWrite('target/area_export2.shp', 'AREA')");
         // Read this shape file to check values
         assertTrue(shpFile.exists());
         SHPDriver shpDriver = new SHPDriver();
@@ -249,7 +253,7 @@ public class SHPImportExportTest {
         stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
         stat.execute("insert into area values(NULL, 2)");
         // Create a shape file using table area
-        stat.execute("CALL SHPWrite('target/area_export.shp', 'AREA')");
+        stat.execute("CALL SHPWrite('target/area_export3.shp', 'AREA')");
     }
 
     @Test
@@ -294,7 +298,7 @@ public class SHPImportExportTest {
         stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1, True)");
         stat.execute("insert into area values('POLYGON ((90 109, 190 109, 190 9, 90 9, 90 109))', 2, False)");
         // Export in target with special chars
-        File shpFile = new File("target/test_export.shp");
+        File shpFile = new File("target/test_export4.shp");
         DriverFunction exp = new SHPDriverFunction();
         exp.exportTable(connection, "AREA", shpFile,new EmptyProgressVisitor());
         stat.execute("DROP TABLE IF EXISTS myshp");
@@ -306,5 +310,264 @@ public class SHPImportExportTest {
         } finally {
             rs.close();
         }
+    }
+
+    @Test
+    public void exportTableTestZ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File shpFile = new File("target/area_export5.shp");
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(idarea int primary key, the_geom POLYGON)");
+        stat.execute("insert into area values(1, 'POLYGON ((-10 109 5, 90 109 5, 90 9 5, -10 9 5, -10 109 5))')");
+        stat.execute("insert into area values(2, 'POLYGON ((90 109 3, 190 109 3, 190 9 3, 90 9 3, 90 109 3))')");
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export5.shp', 'AREA')");
+        // Read this shape file to check values
+        assertTrue(shpFile.exists());
+        SHPDriver shpDriver = new SHPDriver();
+        shpDriver.initDriverFromFile(shpFile);
+        shpDriver.setGeometryFieldIndex(1);
+        assertEquals(2, shpDriver.getFieldCount());
+        assertEquals(2, shpDriver.getRowCount());
+        Object[] row = shpDriver.getRow(0);
+        assertEquals(1, row[0]);
+        // The driver can not create POLYGON
+        WKTWriter toText = new WKTWriter(3);
+        assertEquals("MULTIPOLYGON (((-10 109 5, 90 109 5, 90 9 5, -10 9 5, -10 109 5)))", toText.write((Geometry)row[1]));
+        row = shpDriver.getRow(1);
+        assertEquals(2, row[0]);
+        assertEquals("MULTIPOLYGON (((90 109 3, 190 109 3, 190 9 3, 90 9 3, 90 109 3)))", toText.write((Geometry)row[1]));
+    }
+    
+    @Test
+    public void exportImportPolygonZ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File shpFile = new File("target/area_export6.shp");
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(idarea int primary key, the_geom POLYGON)");
+        stat.execute("insert into area values(1, 'POLYGON ((-10 109 5, 90 109 5, 90 9 5, -10 9 5, -10 109 5))')");
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export6.shp', 'AREA')");
+        // Read this shape file to check values
+        assertTrue(shpFile.exists());
+        stat.execute("DROP TABLE IF EXISTS IMPORT_AREA;");
+        stat.execute("CALL SHPRead('target/area_export6.shp', 'IMPORT_AREA')");
+        ResultSet res = stat.executeQuery("SELECT THE_GEOM FROM IMPORT_AREA;");
+        res.next();
+        Geometry geom = (Geometry) res.getObject(1);
+        Coordinate[] coords = geom.getCoordinates();
+        int count = 0;
+        for (Coordinate coord : coords) {
+            if (coord.z == 5) {
+                count++;
+            }
+        }
+        assertEquals(count, coords.length);
+        res.close();
+
+    }
+
+    @Test
+    public void exportImportPointZ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File shpFile = new File("target/punctual_export.shp");
+        stat.execute("DROP TABLE IF EXISTS PUNCTUAL");
+        stat.execute("create table punctual(idarea int primary key, the_geom POINT)");
+        stat.execute("insert into punctual values(1, 'POINT(-10 109 5)')");
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/punctual_export.shp', 'PUNCTUAL')");
+        // Read this shape file to check values
+        assertTrue(shpFile.exists());
+        stat.execute("DROP TABLE IF EXISTS IMPORT_PUNCTUAL;");
+        stat.execute("CALL SHPRead('target/punctual_export.shp', 'IMPORT_PUNCTUAL')");
+        ResultSet res = stat.executeQuery("SELECT THE_GEOM FROM IMPORT_PUNCTUAL;");
+        res.next();
+        Geometry geom = (Geometry) res.getObject(1);
+        Coordinate coord = geom.getCoordinate();
+        assertEquals(coord.z, 5, 10E-1);
+        res.close();
+    }
+    
+     @Test
+    public void exportImportLineStringZ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File shpFile = new File("target/lineal_export.shp");
+        stat.execute("DROP TABLE IF EXISTS LINEAL");
+        stat.execute("create table lineal(idarea int primary key, the_geom LINESTRING)");
+        stat.execute("insert into lineal values(1, 'LINESTRING(-10 109 5, 12  6)')");
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/lineal_export.shp', 'LINEAL')");
+        // Read this shape file to check values
+        assertTrue(shpFile.exists());
+        stat.execute("DROP TABLE IF EXISTS IMPORT_LINEAL;");
+        stat.execute("CALL SHPRead('target/lineal_export.shp', 'IMPORT_LINEAL')");
+        ResultSet res = stat.executeQuery("SELECT THE_GEOM FROM IMPORT_LINEAL;");
+        res.next();
+        Geometry geom = (Geometry) res.getObject(1);
+        Coordinate[] coords = geom.getCoordinates();
+        assertEquals(coords[0].z, 5, 10E-1);
+        //Since the 'NaN' DOUBLE values for Z coordinates is invalid in a shapefile, it is converted to '0.0'. 
+        assertEquals(coords[1].z, 0, 10E-1);
+        res.close();
+    }
+    
+    @Test(expected = SQLException.class)
+    public void exportTableWithBadExtensionName() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key)");
+        stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
+        
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export.blabla', 'AREA')");
+    }
+    
+    @Test(expected = SQLException.class)
+    public void exportTableWithBadNullExtension() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key)");
+        stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
+        
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export.', 'AREA')");
+    }
+    
+    @Test(expected = SQLException.class)
+    public void importFileNoExist() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("CALL SHPRead('target/blabla.shp', 'BLABLA')");
+    }
+    
+    @Test(expected = SQLException.class)
+    public void importFileWithBadExtension() throws SQLException, IOException {
+        Statement stat = connection.createStatement();        
+        File file = new File("target/area_export.blabla");
+        file.delete();
+        file.createNewFile();        
+        stat.execute("CALL SHPRead('target/area_export.blabla', 'BLABLA')");
+        file.delete();
+    }
+    
+    @Test
+    public void exportTableWithNoPRJ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key)");
+        stat.execute("insert into area values('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 1)");
+        
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export7.shp', 'AREA')");
+        
+        assertTrue(!new File("target/area_export7.prj").exists());
+    }
+    
+    @Test
+    public void exportTableWithPRJ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(the_geom GEOMETRY CHECK ST_SRID(THE_GEOM) = 4326, idarea int primary key)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 4326), 1)"); 
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export8.shp', 'AREA')");        
+        assertTrue(new File("target/area_export8.prj").exists());
+    }
+    
+    @Test
+    public void exportImportTableWithOGCPRJ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA_READ");
+        stat.execute("create table area(the_geom GEOMETRY CHECK ST_SRID(THE_GEOM) = 4326, idarea int primary key)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 4326), 1)"); 
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export9.shp', 'AREA')");
+        stat.execute("CALL SHPRead('target/area_export9.shp', 'AREA_READ')");
+        ResultSet res = stat.executeQuery("SELECT ST_SRID(THE_GEOM) FROM AREA_READ;");
+        res.next();
+        assertTrue(res.getInt(1)==4326);
+        res.close();        
+    }
+    
+    @Test
+    public void exportUnknownhSRIDPRJ() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA");
+        stat.execute("create table area(the_geom GEOMETRY CHECK ST_SRID(THE_GEOM) = 9999, idarea int primary key)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))', 9999), 1)"); 
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export10.shp', 'AREA')");        
+    }
+    
+    @Test
+    public void readEmptyPRJ() throws SQLException, IOException {        
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA_READ");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))'), 1)"); 
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export11.shp', 'AREA')"); 
+        new File("target/area_export.prj").createNewFile();
+        stat.execute("CALL SHPRead('target/area_export11.shp', 'AREA_READ')");
+        ResultSet res = stat.executeQuery("SELECT ST_SRID(THE_GEOM) FROM AREA_READ;");
+        res.next();
+        assertTrue(res.getInt(1)==0);
+        res.close();  
+    }
+    
+    @Test(expected = SQLException.class)
+    public void exportTableGeometryCollection() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS GEOM_COLL");
+        stat.execute("create table GEOM_COLL(idarea int primary key, the_geom GEOMETRY)");
+        stat.execute("insert into GEOM_COLL values(1, 'GEOMETRYCOLLECTION (LINESTRING (184 375, 97 245), POLYGON ((180 270, 220 270, 220 230, 180 230, 180 270)))')");
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/geomcoll_export.shp', 'GEOM_COLL')");
+    }
+    
+    @Test
+    public void geomTableToDBF() throws SQLException, IOException {        
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA_READ");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key, type varchar)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))'), 1, 'breton')"); 
+        stat.execute("CALL DBFWrite('target/area_export12.dbf', 'AREA')"); 
+        stat.execute("CALL DBFRead('target/area_export12.dbf', 'AREA_READ')");
+        ResultSet res = stat.executeQuery("SELECT * FROM AREA_READ;");
+        res.next();
+        assertTrue(res.getInt(2)==1);
+        assertTrue(res.getString(3).equals("breton"));        
+        res.close();  
+    }
+    
+    @Test
+    public void twoGeomTableToDBF() throws SQLException, IOException {        
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA_READ");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key, geom GEOMETRY, type varchar)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))'), 1,"
+                + "ST_GEOMFROMTEXT('POINT (-10 109)'), 'breton')"); 
+        stat.execute("CALL DBFWrite('target/area_export13.dbf', 'AREA')"); 
+        stat.execute("CALL DBFRead('target/area_export13.dbf', 'AREA_READ')");
+        ResultSet res = stat.executeQuery("SELECT * FROM AREA_READ;");
+        res.next();
+        assertTrue(res.getInt(2)==1);
+        assertTrue(res.getString(3).equals("breton"));        
+        res.close();  
+    }
+    
+     @Test
+    public void writeReadTableWithTwoGeometries() throws SQLException, IOException {        
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA_READ");
+        stat.execute("create table area(the_geom GEOMETRY, idarea int primary key, geom GEOMETRY)");
+        stat.execute("insert into area values(ST_GEOMFROMTEXT('POLYGON ((-10 109, 90 109, 90 9, -10 9, -10 109))'), 1,ST_GEOMFROMTEXT('POINT (-10 109)'))"); 
+        // Create a shape file using table area
+        stat.execute("CALL SHPWrite('target/area_export14.shp', 'AREA')"); 
+        new File("target/area_export.prj").createNewFile();
+        stat.execute("CALL SHPRead('target/area_export14.shp', 'AREA_READ')");
+        ResultSet res = stat.executeQuery("SELECT * FROM AREA_READ;");
+        res.next();        
+        assertTrue(res.getInt(3)==1);
+        res.close();  
     }
 }

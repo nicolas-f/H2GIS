@@ -1,26 +1,24 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.geojson;
 
@@ -53,6 +51,7 @@ public class GeojsonImportExportTest {
         CreateSpatialExtension.registerFunction(connection.createStatement(), new ST_AsGeoJSON(), "");
         CreateSpatialExtension.registerFunction(connection.createStatement(), new GeoJsonWrite(), "");
         CreateSpatialExtension.registerFunction(connection.createStatement(), new GeoJsonRead(), "");
+        CreateSpatialExtension.registerFunction(connection.createStatement(), new ST_GeomFromGeoJSON(), "");
     }
 
     @AfterClass
@@ -211,24 +210,27 @@ public class GeojsonImportExportTest {
     @Test
     public void testWriteReadGeojsonPointProperties() throws Exception {
         Statement stat = connection.createStatement();
-        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS");
-        stat.execute("create table TABLE_POINTS(the_geom POINT, id INT, climat VARCHAR)");
-        stat.execute("insert into TABLE_POINTS values( 'POINT(1 2)', 1, 'bad')");
-        stat.execute("insert into TABLE_POINTS values( 'POINT(10 200)', 2, 'good')");
-        stat.execute("CALL GeoJsonWrite('target/points_properties.geojson', 'TABLE_POINTS');");
-        stat.execute("CALL GeoJsonRead('target/points_properties.geojson', 'TABLE_POINTS_READ');");
-        ResultSet res = stat.executeQuery("SELECT * FROM TABLE_POINTS_READ;");
-        res.next();
-        assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("POINT(1 2)")));
-        assertTrue((res.getInt(2) == 1));
-        assertTrue((res.getString(3).equals("bad")));
-        res.next();
-        assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("POINT(10 200)")));
-        assertTrue((res.getInt(2) == 2));
-        assertTrue((res.getString(3).equals("good")));
-        res.close();
-        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS_READ");
-        stat.close();
+        try {
+            stat.execute("DROP TABLE IF EXISTS TABLE_POINTS");
+            stat.execute("create table TABLE_POINTS(the_geom POINT, id INT, climat VARCHAR)");
+            stat.execute("insert into TABLE_POINTS values( 'POINT(1 2)', 1, 'bad')");
+            stat.execute("insert into TABLE_POINTS values( 'POINT(10 200)', 2, 'good')");
+            stat.execute("CALL GeoJsonWrite('target/points_properties.geojson', 'TABLE_POINTS');");
+            stat.execute("CALL GeoJsonRead('target/points_properties.geojson', 'TABLE_POINTS_READ');");
+            ResultSet res = stat.executeQuery("SELECT * FROM TABLE_POINTS_READ;");
+            res.next();
+            assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("POINT(1 2)")));
+            assertTrue((res.getInt(2) == 1));
+            assertTrue((res.getString(3).equals("bad")));
+            res.next();
+            assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("POINT(10 200)")));
+            assertTrue((res.getInt(2) == 2));
+            assertTrue((res.getString(3).equals("good")));
+            res.close();
+        } finally {
+            stat.execute("DROP TABLE IF EXISTS TABLE_POINTS_READ");
+            stat.close();
+        }
     }
 
     @Test
@@ -417,4 +419,91 @@ public class GeojsonImportExportTest {
         stat.execute("DROP TABLE IF EXISTS TABLE_MULTILINESTRINGS_READ");
         stat.close();
     }
+
+    @Test
+    public void testWriteReadGeojsonCRS() throws Exception {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS");
+        stat.execute("create table TABLE_POINTS(the_geom POINT CHECK ST_SRID(THE_GEOM)=4326, id INT, climat VARCHAR)");
+        stat.execute("insert into TABLE_POINTS values( ST_GEOMFROMTEXT('POINT(1 2)', 4326), 1, 'bad')");
+        stat.execute("insert into TABLE_POINTS values( ST_GEOMFROMTEXT('POINT(10 200)',4326), 2, 'good')");
+        stat.execute("CALL GeoJsonWrite('target/points_properties.geojson', 'TABLE_POINTS');");
+        stat.execute("CALL GeoJsonRead('target/points_properties.geojson', 'TABLE_POINTS_READ');");
+        ResultSet res = stat.executeQuery("SELECT * FROM TABLE_POINTS_READ;");
+        res.next();
+        Geometry geom = (Geometry) res.getObject(1);
+        assertTrue(geom.equals(WKTREADER.read("POINT(1 2)")));
+        assertTrue((geom.getSRID() == 4326));
+        res.close();
+        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS_READ");
+        stat.close();
+    }
+
+    @Test
+    public void testWriteReadBadSRID() throws Exception {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS");
+        stat.execute("create table TABLE_POINTS(the_geom POINT CHECK ST_SRID(THE_GEOM)=9999, id INT, climat VARCHAR)");
+        stat.execute("insert into TABLE_POINTS values( ST_GEOMFROMTEXT('POINT(1 2)', 9999), 1, 'bad')");
+        stat.execute("insert into TABLE_POINTS values( ST_GEOMFROMTEXT('POINT(10 200)',9999), 2, 'good')");
+        stat.execute("CALL GeoJsonWrite('target/points_properties.geojson', 'TABLE_POINTS');");
+        stat.execute("CALL GeoJsonRead('target/points_properties.geojson', 'TABLE_POINTS_READ');");
+        ResultSet res = stat.executeQuery("SELECT * FROM TABLE_POINTS_READ;");
+        res.next();
+        Geometry geom = (Geometry) res.getObject(1);
+        assertTrue(geom.equals(WKTREADER.read("POINT(1 2)")));
+        assertTrue((geom.getSRID() == 0));
+        res.close();
+        stat.execute("DROP TABLE IF EXISTS TABLE_POINTS_READ");
+        stat.close();
+    }
+
+    @Test
+    public void testWriteReadGeojsonMixedGeometries() throws Exception {
+        Statement stat = connection.createStatement();
+        stat.execute("DROP TABLE IF EXISTS TABLE_MIXED");
+        stat.execute("create table TABLE_MIXED(the_geom GEOMETRY)");
+        stat.execute("insert into TABLE_MIXED values( 'MULTIPOINT ((140 260), (246 284))')");
+        stat.execute("insert into TABLE_MIXED values( 'LINESTRING (150 290, 180 170, 266 275)')");
+        stat.execute("CALL GeoJsonWrite('target/mixedgeom.geojson', 'TABLE_MIXED');");
+        stat.execute("CALL GeoJsonRead('target/mixedgeom.geojson', 'TABLE_MIXED_READ');");
+        ResultSet res = stat.executeQuery("SELECT * FROM TABLE_MIXED_READ;");
+        res.next();
+        assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("MULTIPOINT ((140 260), (246 284))")));
+        res.next();
+        assertTrue(((Geometry) res.getObject(1)).equals(WKTREADER.read("LINESTRING (150 290, 180 170, 266 275)")));
+        res.close();
+        stat.execute("DROP TABLE IF EXISTS TABLE_MIXED_READ");
+        stat.close();
+    }
+    
+    
+    @Test
+    public void testReadGeoJSON1() throws Exception {
+        Statement stat = connection.createStatement();        
+        ResultSet res = stat.executeQuery("SELECT ST_GeomFromGeoJSON('{\"type\":\"Point\",\"coordinates\":[10,1]}')");
+        res.next();
+        assertTrue(res.getString(1).equals("POINT (10 1)"));
+        stat.close();
+    }
+    
+    @Test
+    public void testReadGeoJSON2() throws Exception {
+        Statement stat = connection.createStatement();        
+        ResultSet res = stat.executeQuery("SELECT ST_GeomFromGeoJSON('{\"type\":\"LineString\",\"coordinates\":[[1,1],[10,10]]}')");
+        res.next();
+        assertTrue(res.getString(1).equals("LINESTRING (1 1, 10 10)"));
+        stat.close();
+    }
+    
+    @Test
+    public void testReadGeoJSON3() throws Exception {
+        Statement stat = connection.createStatement();        
+        ResultSet res = stat.executeQuery("SELECT ST_GeomFromGeoJSON('{ \"type\": \"MultiPoint\", \"coordinates\": [ [100, 0], [101, 1] ]}')");
+        res.next();
+        assertTrue(res.getString(1).equals("MULTIPOINT ((100 0), (101 1))"));
+        stat.close();
+    }
+
+
 }

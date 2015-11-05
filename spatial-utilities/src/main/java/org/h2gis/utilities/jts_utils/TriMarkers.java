@@ -1,32 +1,32 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2012 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.utilities.jts_utils;
 
 import com.vividsolutions.jts.algorithm.CGAlgorithms;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Triangle;
+import com.vividsolutions.jts.math.Vector2D;
+import com.vividsolutions.jts.math.Vector3D;
 
 /**
  * Used by TriangleContouring.
@@ -162,4 +162,64 @@ public class TriMarkers extends Triangle {
             return m3;
         }
     }
+
+    /**
+     * Get the normal vector to this triangle, of length 1.
+     * @param t input triangle
+     * @return vector normal to the triangle.
+     */
+    public static Vector3D getNormalVector(Triangle t) throws IllegalArgumentException {
+        if(Double.isNaN(t.p0.z) || Double.isNaN(t.p1.z) ||  Double.isNaN(t.p2.z)) {
+            throw new IllegalArgumentException("Z is required, cannot compute triangle normal of "+t);
+        }
+        double dx1 = t.p0.x - t.p1.x;
+        double dy1 = t.p0.y - t.p1.y;
+        double dz1 = t.p0.z - t.p1.z;
+        double dx2 = t.p1.x - t.p2.x;
+        double dy2 = t.p1.y - t.p2.y;
+        double dz2 = t.p1.z - t.p2.z;
+        return Vector3D.create(dy1*dz2 - dz1*dy2, dz1 * dx2 - dx1 * dz2, dx1 * dy2 - dy1 * dx2).normalize();
+    }
+
+    /**
+     * Get the vector with the highest down slope in the plan.
+     * @param normal
+     * @param epsilon
+     * @return the steepest vector.
+     */
+    public static Vector3D getSteepestVector(final Vector3D normal, final double epsilon) {
+        if (Math.abs(normal.getX()) < epsilon && Math.abs(normal.getY()) < epsilon) {
+            return new Vector3D(0, 0, 0);
+        }
+        Vector3D slope;
+        if (Math.abs(normal.getX()) < epsilon) {
+            slope = new Vector3D(0, 1, -normal.getY() / normal.getZ());
+        } else if (Math.abs(normal.getY()) < epsilon) {
+            slope = new Vector3D(1, 0, -normal.getX() / normal.getZ());
+        } else {
+            slope = new Vector3D(normal.getX() / normal.getY(), 1,
+                    -1 / normal.getZ() * (normal.getX() * normal.getX() / normal.getY() + normal.getY()));
+        }
+        //We want the vector to be low-oriented.
+        if (slope.getZ() > epsilon) {
+            slope = new Vector3D(-slope.getX(), -slope.getY(), -slope.getZ());
+        }
+        //We normalize it
+        return slope.normalize();
+    }
+
+    /**
+     *
+     * @param normal Plane normal
+     * @param epsilon Epsilon value ex:1e-12
+     * @return The steepest slope of this plane in degree.
+     */
+    public static double getSlopeInPercent(final Vector3D normal, final double epsilon) {
+        Vector3D vector = getSteepestVector(normal, epsilon);
+        if(Math.abs(vector.getZ()) < epsilon) {
+            return 0;
+        } else {
+            return (Math.abs(vector.getZ()) / new Vector2D(vector.getX(), vector.getY()).length()) * 100;
+        }
+    }   
 }

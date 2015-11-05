@@ -1,26 +1,24 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.dbf;
 
@@ -76,9 +74,9 @@ public class DBFImportExportTest {
         stat.execute("create table area(idarea int primary key, value DOUBLE, descr CHAR(50))");
         stat.execute("insert into area values(1, 4.9406564584124654, 'main area')");
         stat.execute("insert into area values(2, 2.2250738585072009, 'second area')");
-        // Create a shape file using table area
+        // Create a dbf file using table area
         stat.execute("CALL DBFWrite('target/area_export.dbf', 'AREA')");
-        // Read this shape file to check values
+        // Read this dbf file to check values
         assertTrue(dbfFile.exists());
         DBFDriver dbfDriver = new DBFDriver();
         dbfDriver.initDriverFromFile(dbfFile);
@@ -185,5 +183,51 @@ public class DBFImportExportTest {
         ResultSet rs = stat.executeQuery("SELECT * FROM AREA2");
         assertEquals(H2TableIndex.PK_COLUMN_NAME+"2", rs.getMetaData().getColumnName(1));
         assertEquals(H2TableIndex.PK_COLUMN_NAME, rs.getMetaData().getColumnName(2));
+    }
+
+    @Test
+    public void testWriteDecimal() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File dbfFile = new File("target/area_export.dbf");
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA2");
+        stat.execute("create table area(id integer, value DECIMAL(13,3), descr CHAR(50))");
+        double v1 = 40656458.41;
+        double v2 = 25073858.50;
+        stat.execute("insert into area values(1, "+v1+", 'main area')");
+        stat.execute("insert into area values(2, "+v2+", 'second area')");
+        // Create a shape file using table area
+        stat.execute("CALL DBFWrite('"+dbfFile.getPath()+"', 'AREA')");
+        // Read this shape file to check values
+        stat.execute("CALL DBFRead('"+dbfFile.getPath()+"', 'AREA2')");
+        ResultSet rs = stat.executeQuery("SELECT value FROM AREA2 order by id");
+        assertTrue(rs.next());
+        assertEquals(v1, rs.getDouble(1), 1e-12);
+        assertTrue(rs.next());
+        assertEquals(v2, rs.getDouble(1), 1e-12);
+        assertFalse(rs.next());
+        rs.close();
+    }
+
+    @Test
+    public void testWriteReal() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File dbfFile = new File("target/area_export.dbf");
+        stat.execute("DROP TABLE IF EXISTS AREA, AREA2");
+        stat.execute("create table area(id integer, value REAL, descr CHAR(50))");
+        double v1 = 406.56;
+        double v2 = 250.73;
+        stat.execute("insert into area values(1, "+v1+", 'main area')");
+        stat.execute("insert into area values(2, "+v2+", 'second area')");
+        // Create a shape file using table area
+        stat.execute("CALL DBFWrite('"+dbfFile.getPath()+"', 'AREA')");
+        // Read this shape file to check values
+        stat.execute("CALL DBFRead('"+dbfFile.getPath()+"', 'AREA2')");
+        ResultSet rs = stat.executeQuery("SELECT value FROM AREA2 order by id");
+        assertTrue(rs.next());
+        assertEquals(v1, rs.getDouble(1), 1e-2);
+        assertTrue(rs.next());
+        assertEquals(v2, rs.getDouble(1), 1e-2);
+        assertFalse(rs.next());
+        rs.close();
     }
 }

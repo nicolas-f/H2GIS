@@ -1,32 +1,31 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2012 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.drivers.kml;
 
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,7 +46,7 @@ public class KMLImporterExporterTest {
 
     private static Connection connection;
     private static final String DB_NAME = "KMLExportTest";
-    private static WKTReader WKT_READER = new WKTReader();
+    private static final WKTReader WKT_READER = new WKTReader();
 
     @BeforeClass
     public static void tearUp() throws Exception {
@@ -66,42 +65,57 @@ public class KMLImporterExporterTest {
     public void exportKMLPoints() throws SQLException {
         Statement stat = connection.createStatement();
         File kmlFile = new File("target/kml_points.kml");
-        stat.execute("DROP TABLE IF EXISTS KML_POINTS");
-        stat.execute("create table KML_POINTS(id int primary key, the_geom POINT, response boolean)");
-        stat.execute("insert into KML_POINTS values(1, ST_Geomfromtext('POINT (2.19 47.58)', 4326), true)");
-        stat.execute("insert into KML_POINTS values(2, ST_Geomfromtext('POINT (1.06 47.59)',  4326), false)");
-        // Create a KML file
-        stat.execute("CALL KMLWrite('target/kml_points.kml', 'KML_POINTS')");
-        assertTrue(kmlFile.exists());
-        stat.close();
+        try {
+            stat.execute("DROP TABLE IF EXISTS KML_POINTS");
+            stat.execute("create table KML_POINTS(id int primary key, the_geom POINT, response boolean)");
+            stat.execute("insert into KML_POINTS values(1, ST_Geomfromtext('POINT (2.19 47.58)', 4326), true)");
+            stat.execute("insert into KML_POINTS values(2, ST_Geomfromtext('POINT (1.06 47.59)',  4326), false)");
+            // Create a KML file
+            stat.execute("CALL KMLWrite('target/kml_points.kml', 'KML_POINTS')");
+            assertTrue(kmlFile.exists());
+        } finally {
+            stat.close();
+            assertTrue(kmlFile.delete());
+            assertFalse(kmlFile.exists());
+        }
     }
 
     @Test
     public void exportKMLLineString() throws SQLException {
         Statement stat = connection.createStatement();
         File kmlFile = new File("target/kml_lineString.kml");
-        stat.execute("DROP TABLE IF EXISTS KML_LINESTRING");
-        stat.execute("create table KML_LINESTRING(id int primary key, the_geom LINESTRING)");
-        stat.execute("insert into KML_LINESTRING values(1, ST_Geomfromtext('LINESTRING (2.19 47.58,1.19 46.58)', 4326))");
-        stat.execute("insert into KML_LINESTRING values(2, ST_Geomfromtext('LINESTRING (1.06 47.59,1.19 46.58)', 4326))");
-        // Create a KML file
-        stat.execute("CALL KMLWrite('target/kml_lineString.kml', 'KML_LINESTRING')");
-        assertTrue(kmlFile.exists());        
-        stat.close();
+        try {
+            stat.execute("DROP TABLE IF EXISTS KML_LINESTRING");
+            stat.execute("create table KML_LINESTRING(id int primary key, the_geom LINESTRING)");
+            stat.execute("insert into KML_LINESTRING values(1, ST_Geomfromtext('LINESTRING (2.19 47.58,1.19 46.58)', 4326))");
+            stat.execute("insert into KML_LINESTRING values(2, ST_Geomfromtext('LINESTRING (1.06 47.59,1.19 46.58)', 4326))");
+            // Create a KML file
+            stat.execute("CALL KMLWrite('target/kml_lineString.kml', 'KML_LINESTRING')");
+            assertTrue(kmlFile.exists());
+        } finally {
+            stat.close();
+            assertTrue(kmlFile.delete());
+            assertFalse(kmlFile.exists());
+        }
     }
 
     @Test
     public void exportKMZPoints() throws SQLException {
         Statement stat = connection.createStatement();
         File kmzFile = new File("target/kml_points.kmz");
-        stat.execute("DROP TABLE IF EXISTS KML_POINTS");
-        stat.execute("create table KML_POINTS(id int primary key, the_geom POINT, response boolean)");
-        stat.execute("insert into KML_POINTS values(1, ST_Geomfromtext('POINT (2.19 47.58)',4326), true)");
-        stat.execute("insert into KML_POINTS values(2, ST_Geomfromtext('POINT (1.06 47.59)',4326), false)");
-        // Create a KMZ file
-        stat.execute("CALL KMLWrite('target/kml_points.kmz', 'KML_POINTS')");
-        assertTrue(kmzFile.exists());
-        stat.close();
+        try {
+            stat.execute("DROP TABLE IF EXISTS KML_POINTS");
+            stat.execute("create table KML_POINTS(id int primary key, the_geom POINT, response boolean)");
+            stat.execute("insert into KML_POINTS values(1, ST_Geomfromtext('POINT (2.19 47.58)',4326), true)");
+            stat.execute("insert into KML_POINTS values(2, ST_Geomfromtext('POINT (1.06 47.59)',4326), false)");
+            // Create a KMZ file
+            stat.execute("CALL KMLWrite('target/kml_points.kmz', 'KML_POINTS')");
+            assertTrue(kmzFile.exists());
+        } finally {
+            stat.close();
+            assertTrue(kmzFile.delete());
+            assertFalse(kmzFile.exists());
+        }
     }
 
     @Test
@@ -181,6 +195,9 @@ public class KMLImporterExporterTest {
             assertTrue(true);
         } finally {
             stat.close();
+            File kmzFile = new File("target/kml_points.kmz");
+            assertTrue(kmzFile.delete());
+            assertFalse(kmzFile.exists());
         }
     }
 
@@ -198,6 +215,9 @@ public class KMLImporterExporterTest {
             assertTrue(true);
         } finally {
             stat.close();
+            File kmzFile = new File("target/kml_points.kmz");
+            assertTrue(kmzFile.delete());
+            assertFalse(kmzFile.exists());
         }
     }
 
@@ -214,7 +234,7 @@ public class KMLImporterExporterTest {
         res.close();
         stat.close();
     }
-    
+
     @Test
     public void testST_AsKml2() throws SQLException {
         Statement stat = connection.createStatement();
@@ -222,11 +242,11 @@ public class KMLImporterExporterTest {
                 + "    'LINESTRING(-1.53 47.24 100, -1.51 47.22 100, -1.50 47.19 100,"
                 + "                -1.49 47.17 100)',4326), true, 2);");
         res.next();
-        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>relativeToGround</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));        
+        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>relativeToGround</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));
         res.close();
         stat.close();
     }
-    
+
     @Test
     public void testST_AsKml3() throws SQLException {
         Statement stat = connection.createStatement();
@@ -234,11 +254,11 @@ public class KMLImporterExporterTest {
                 + "    'LINESTRING(-1.53 47.24 100, -1.51 47.22 100, -1.50 47.19 100,"
                 + "                -1.49 47.17 100)',4326), true, 1);");
         res.next();
-        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>clampToGround</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));        
+        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>clampToGround</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));
         res.close();
         stat.close();
     }
-    
+
     @Test
     public void testST_AsKml4() throws SQLException {
         Statement stat = connection.createStatement();
@@ -246,11 +266,11 @@ public class KMLImporterExporterTest {
                 + "    'LINESTRING(-1.53 47.24 100, -1.51 47.22 100, -1.50 47.19 100,"
                 + "                -1.49 47.17 100)',4326), true, 4);");
         res.next();
-        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>absolute</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));        
+        assertEquals("<LineString><extrude>1</extrude><kml:altitudeMode>absolute</kml:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));
         res.close();
         stat.close();
     }
-    
+
     @Test
     public void testST_AsKml5() throws SQLException {
         Statement stat = connection.createStatement();
@@ -258,11 +278,11 @@ public class KMLImporterExporterTest {
                 + "    'LINESTRING(-1.53 47.24 100, -1.51 47.22 100, -1.50 47.19 100,"
                 + "                -1.49 47.17 100)',4326), true, 8);");
         res.next();
-        assertEquals("<LineString><extrude>1</extrude><gx:altitudeMode>clampToSeaFloor</gx:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));        
+        assertEquals("<LineString><extrude>1</extrude><gx:altitudeMode>clampToSeaFloor</gx:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));
         res.close();
         stat.close();
     }
-    
+
     @Test
     public void testST_AsKml6() throws SQLException {
         Statement stat = connection.createStatement();
@@ -270,14 +290,14 @@ public class KMLImporterExporterTest {
                 + "    'LINESTRING(-1.53 47.24 100, -1.51 47.22 100, -1.50 47.19 100,"
                 + "                -1.49 47.17 100)',4326), true, 16);");
         res.next();
-        assertEquals("<LineString><extrude>1</extrude><gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));        
+        assertEquals("<LineString><extrude>1</extrude><gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode><coordinates>-1.53,47.24,100.0 -1.51,47.22,100.0 -1.5,47.19,100.0 -1.49,47.17,100.0</coordinates></LineString>", res.getString(1));
         res.close();
         stat.close();
     }
-    
-    
+
+
     @Test(expected = IllegalArgumentException.class)
-    public void testST_AsKml7() throws  Throwable {
+    public void testST_AsKml7() throws Throwable {
         Statement stat = connection.createStatement();
         try {
             stat.execute("SELECT ST_AsKml(ST_Geomfromtext("
@@ -288,5 +308,19 @@ public class KMLImporterExporterTest {
         } finally {
             stat.close();
         }
+    }
+
+    @Test(expected = SQLException.class)
+    public void importFileNoExist() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        stat.execute("CALL KMLRead('target/blabla.kml', 'BLABLA')");
+    }
+
+    @Test(expected = SQLException.class)
+    public void importFileWithBadExtension() throws SQLException, IOException {
+        Statement stat = connection.createStatement();
+        File file = new File("target/area_export.blabla");
+        file.createNewFile();
+        stat.execute("CALL KMLRead('target/area_export.blabla', 'BLABLA')");
     }
 }

@@ -1,25 +1,24 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier
- * SIG" team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly: info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.h2spatial.internal.function.spatial.crs;
 
@@ -77,54 +76,55 @@ public class ST_Transform extends AbstractFunction implements ScalarFunction {
      * @return
      * @throws SQLException 
      */
-    public static Geometry ST_Transform(Connection connection, Geometry geom, int codeEpsg) throws SQLException {
-        if (crsf == null) {
-            crsf = new CRSFactory();
+    public static Geometry ST_Transform(Connection connection, Geometry geom, Integer codeEpsg) throws SQLException {
+        if (geom != null || codeEpsg!=null) {
+            if (crsf == null) {
+                crsf = new CRSFactory();
             //Activate the CRSFactory and the internal H2 spatial_ref_sys registry to
-            // manage Coordinate Reference Systems.
-            crsf.getRegistryManager().addRegistry(srr);
-        }
-        srr.setConnection(connection);
-        try {
-            int inputSRID = geom.getSRID();
-            if (inputSRID == 0) {
-                throw new SQLException("Cannot find a CRS");
-            } else {
-                CoordinateReferenceSystem inputCRS = crsf.getCRS(srr.getRegistryName() + ":" + String.valueOf(inputSRID));
-                CoordinateReferenceSystem targetCRS = crsf.getCRS(srr.getRegistryName() + ":" + String.valueOf(codeEpsg));
-                if (inputCRS.equals(targetCRS)) {
-                    return geom;
-                }
-                EPSGTuple epsg = new EPSGTuple(inputSRID, codeEpsg);
-                CoordinateOperation op = copPool.get(epsg);
-                if (op != null) {
-                    Geometry outPutGeom = (Geometry)geom.clone();
-                    outPutGeom.apply(new CRSTransformFilter(op));
-                    outPutGeom.setSRID(codeEpsg);
-                    return outPutGeom;
+                // manage Coordinate Reference Systems.
+                crsf.getRegistryManager().addRegistry(srr);
+            }
+            srr.setConnection(connection);
+            try {
+                int inputSRID = geom.getSRID();
+                if (inputSRID == 0) {
+                    throw new SQLException("Cannot find a CRS");
                 } else {
-                    if (inputCRS instanceof GeodeticCRS && targetCRS instanceof GeodeticCRS) {
-                        List<CoordinateOperation> ops = CoordinateOperationFactory
-                                .createCoordinateOperations((GeodeticCRS) inputCRS, (GeodeticCRS) targetCRS);
-                        if (!ops.isEmpty()) {
-                            op = ops.get(0);
-                            Geometry outPutGeom = (Geometry)geom.clone();
-                            outPutGeom.apply(new CRSTransformFilter(op));
-                            copPool.put(epsg, op);
-                            outPutGeom.setSRID(codeEpsg);
-                            return outPutGeom;
+                    CoordinateReferenceSystem inputCRS = crsf.getCRS(srr.getRegistryName() + ":" + String.valueOf(inputSRID));
+                    CoordinateReferenceSystem targetCRS = crsf.getCRS(srr.getRegistryName() + ":" + String.valueOf(codeEpsg));
+                    if (inputCRS.equals(targetCRS)) {
+                        return geom;
+                    }
+                    EPSGTuple epsg = new EPSGTuple(inputSRID, codeEpsg);
+                    CoordinateOperation op = copPool.get(epsg);
+                    if (op != null) {
+                        Geometry outPutGeom = (Geometry) geom.clone();
+                        outPutGeom.apply(new CRSTransformFilter(op));
+                        outPutGeom.setSRID(codeEpsg);
+                        return outPutGeom;
+                    } else {
+                        if (inputCRS instanceof GeodeticCRS && targetCRS instanceof GeodeticCRS) {
+                            List<CoordinateOperation> ops = CoordinateOperationFactory
+                                    .createCoordinateOperations((GeodeticCRS) inputCRS, (GeodeticCRS) targetCRS);
+                            if (!ops.isEmpty()) {
+                                op = ops.get(0);
+                                Geometry outPutGeom = (Geometry) geom.clone();
+                                outPutGeom.apply(new CRSTransformFilter(op));
+                                copPool.put(epsg, op);
+                                outPutGeom.setSRID(codeEpsg);
+                                return outPutGeom;
+                            }
+                        } else {
+                            throw new SQLException("The transformation from "
+                                    + inputCRS + " to " + codeEpsg + " is not yet supported.");
                         }
                     }
-                    else{
-                        throw new SQLException("The transformation from " +
-                                inputCRS + " to " + codeEpsg + " is not yet supported.");
-                    }
                 }
+            } catch (CRSException ex) {
+                throw new SQLException("Cannot create the CRS", ex);
+            } finally {
+                srr.setConnection(null);
             }
-        } catch (CRSException ex) {
-            throw new SQLException("Cannot create the CRS", ex);
-        } finally {
-            srr.setConnection(null);
         }
         return null;
     }

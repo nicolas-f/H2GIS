@@ -1,3 +1,25 @@
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
+ *
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
+ *
+ * H2GIS is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+ * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
+ */
 package org.h2gis.drivers.file_table;
 
 import org.h2.api.TableEngine;
@@ -9,6 +31,7 @@ import org.h2.table.Table;
 import org.h2.util.StringUtils;
 import org.h2.value.Value;
 import org.h2gis.drivers.FileDriver;
+import org.h2gis.utilities.URIUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +42,7 @@ import java.util.List;
 /**
  * Implement theses abstract methods in order to define a file engine.
  * @author Nicolas Fortin
+ * @param <Driver> file driver
  */
 public abstract class FileEngine<Driver extends FileDriver> implements TableEngine {
     private Logger LOGGER = LoggerFactory.getLogger(FileEngine.class);
@@ -28,7 +52,7 @@ public abstract class FileEngine<Driver extends FileDriver> implements TableEngi
         if(data.tableEngineParams.isEmpty()) {
             throw DbException.get(ErrorCode.FILE_NOT_FOUND_1);
         }
-        File filePath = new File(StringUtils.javaDecode(data.tableEngineParams.get(0)));
+        File filePath = URIUtility.fileFromString(StringUtils.javaDecode(data.tableEngineParams.get(0)));
         if(!filePath.exists()) {
             // Do not throw an exception as it will prevent the user from opening the database
             LOGGER.error("File not found:\n"+filePath.getAbsolutePath()+"\nThe table "+data.tableName+" will be empty.");
@@ -89,6 +113,7 @@ public abstract class FileEngine<Driver extends FileDriver> implements TableEngi
 
     /**
      * Add columns definition of the file into the CreateTableData instance.
+     * @param driver driver object
      * @param data Data to initialise
      * @throws java.io.IOException
      */

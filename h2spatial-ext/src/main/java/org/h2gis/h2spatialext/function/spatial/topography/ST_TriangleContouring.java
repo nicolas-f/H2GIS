@@ -1,28 +1,25 @@
 /**
- * h2spatial is a library that brings spatial support to the H2 Java database.
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2012 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.h2spatialext.function.spatial.topography;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -43,6 +40,7 @@ import org.h2gis.utilities.jts_utils.TriMarkers;
 
 import java.sql.*;
 import java.util.*;
+import org.h2.value.ValueArray;
 
 /**
  * Split triangle into area within the specified range values.
@@ -62,9 +60,9 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
     public ST_TriangleContouring() {
         addProperty(PROP_REMARKS, "Split triangle into polygons within the specified range of values.\n" +
                 "Iso contouring using Z:\n" +
-                "select * from ST_CONTOURING('input_table',10,20,30,40)\n" +
+                "select * from ST_TRIANGLECONTOURING('input_table',10,20,30,40)\n" +
                 "Iso contouring using table columns\n" +
-                "SELECT * FROM ST_CONTOURING('input_table','m1','m2','m3',10,20,30,40)");
+                "SELECT * FROM ST_TRIANGLECONTOURING('input_table','m1','m2','m3',10,20,30,40)");
         addProperty(PROP_NOBUFFER, true);
     }
 
@@ -72,6 +70,9 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
     public String getJavaStaticMethod() {
         return "triangleContouring";
     }
+    
+   
+   
 
     /**
      * Iso contouring using Z,M attributes of geometries
@@ -103,8 +104,14 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
         if(rowSource == null) {
             // Use Z
             List<Double> isoLvls = new ArrayList<Double>(varArgs.length);
-            for(Value value : varArgs) {
-                isoLvls.add(value.getDouble());
+            for (Value value : varArgs) {
+                if (value instanceof ValueArray) {
+                    for (Value arrVal : ((ValueArray) value).getList()) {
+                        isoLvls.add(arrVal.getDouble());
+                    }
+                } else {
+                    isoLvls.add(value.getDouble());
+                }
             }
             rowSource = new ExplodeResultSet(connection,tableName, isoLvls);
         }
@@ -118,6 +125,7 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
         // If true, table query is closed the read again
         private boolean firstRow = true;
         private ResultSet tableQuery;
+        private boolean endOfResultSet = false;
         private String tableName;
         private String spatialFieldName;
         private Integer spatialFieldIndex;
@@ -155,7 +163,7 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
             if(firstRow) {
                 reset();
             }
-            if(generatedRows.isEmpty()) {
+            while(generatedRows.isEmpty() && !endOfResultSet) {
                 parseRow();
             }
             if(generatedRows.isEmpty()) {
@@ -207,6 +215,8 @@ public class ST_TriangleContouring extends DeterministicScalarFunction {
                         generatedRows.add(new GeneratedTriangle(polygon, isoResult.getKey()));
                     }
                 }
+            } else {
+                endOfResultSet = true;
             }
         }
 

@@ -1,26 +1,24 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
 package org.h2gis.utilities;
 
@@ -39,8 +37,9 @@ public class TableLocation {
     private String catalog,schema,table;
     /** Recognized by H2 and Postgres */
     private static final String QUOTE_CHAR = "\"";
-    private static final Pattern POSTGRE_SPECIAL_NAME_PATTERN = Pattern.compile("[^a-z0-9_]");
-    private static final Pattern H2_SPECIAL_NAME_PATTERN = Pattern.compile("[^A-Z0-9_]");
+    private static final Pattern POSTGRE_SPECIAL_NAME_PATTERN = Pattern.compile("^[a-z]{1,1}[a-z0-9_]*$");
+    private static final Pattern H2_SPECIAL_NAME_PATTERN = Pattern.compile("^[A-Z]{1,1}[A-Z0-9_]*$");
+    private String defaultSchema = "PUBLIC";
 
     /**
      * @param rs result set obtained through {@link java.sql.DatabaseMetaData#getTables(String, String, String, String[])}
@@ -98,9 +97,9 @@ public class TableLocation {
      */
     public static String quoteIdentifier(String identifier, boolean isH2DataBase) {
         if((isH2DataBase && (Constants.H2_RESERVED_WORDS.contains(identifier.toUpperCase())
-                        || H2_SPECIAL_NAME_PATTERN.matcher(identifier).find())) ||
+                        || !H2_SPECIAL_NAME_PATTERN.matcher(identifier).find())) ||
                 (!isH2DataBase && (Constants.POSTGIS_RESERVED_WORDS.contains(identifier.toUpperCase())
-                        || POSTGRE_SPECIAL_NAME_PATTERN.matcher(identifier).find()))) {
+                        || !POSTGRE_SPECIAL_NAME_PATTERN.matcher(identifier).find()))) {
             return quoteIdentifier(identifier);
         } else {
             return identifier;
@@ -264,5 +263,33 @@ public class TableLocation {
      */
     public String getTable() {
         return table;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TableLocation)) return false;
+
+        TableLocation that = (TableLocation) o;
+
+        return  (catalog.equals(that.catalog) || catalog.isEmpty() || that.catalog.isEmpty()) &&
+                (schema.equals(that.schema) || (schema.equals(defaultSchema) && that.schema.isEmpty()) ||
+                (that.schema.equals(defaultSchema) && schema.isEmpty())) &&
+                table.equals(that.table);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = catalog.hashCode();
+        result = 31 * result + schema.hashCode();
+        result = 31 * result + table.hashCode();
+        return result;
+    }
+
+    /**
+     * @param defaultSchema Default connection schema, used for table location equality test.
+     */
+    public void setDefaultSchema(String defaultSchema) {
+        this.defaultSchema = defaultSchema;
     }
 }

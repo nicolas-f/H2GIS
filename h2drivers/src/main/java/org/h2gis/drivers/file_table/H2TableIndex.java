@@ -1,28 +1,25 @@
-/*
- * h2spatial is a library that brings spatial support to the H2 Java database.
+/**
+ * H2GIS is a library that brings spatial support to the H2 Database Engine
+ * <http://www.h2database.com>.
  *
- * h2spatial is distributed under GPL 3 license. It is produced by the "Atelier SIG"
- * team of the IRSTV Institute <http://www.irstv.fr/> CNRS FR 2488.
+ * H2GIS is distributed under GPL 3 license. It is produced by CNRS
+ * <http://www.cnrs.fr/>.
  *
- * Copyright (C) 2007-2014 IRSTV (FR CNRS 2488)
- *
- * h2patial is free software: you can redistribute it and/or modify it under the
+ * H2GIS is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later
  * version.
  *
- * h2spatial is distributed in the hope that it will be useful, but WITHOUT ANY
+ * H2GIS is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
  * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * h2spatial. If not, see <http://www.gnu.org/licenses/>.
+ * H2GIS. If not, see <http://www.gnu.org/licenses/>.
  *
- * For more information, please consult: <http://www.orbisgis.org/>
- * or contact directly:
- * info_at_ orbisgis.org
+ * For more information, please consult: <http://www.h2gis.org/>
+ * or contact directly: info_at_h2gis.org
  */
-
 package org.h2gis.drivers.file_table;
 
 import org.h2.api.ErrorCode;
@@ -34,7 +31,6 @@ import org.h2.index.IndexType;
 import org.h2.message.DbException;
 import org.h2.result.Row;
 import org.h2.result.SearchRow;
-import org.h2.result.SimpleRow;
 import org.h2.result.SortOrder;
 import org.h2.table.Column;
 import org.h2.table.IndexColumn;
@@ -86,7 +82,8 @@ public class H2TableIndex extends BaseIndex {
             IndexColumn indexColumn = new IndexColumn();
             indexColumn.columnName = PK_COLUMN_NAME;
             indexColumn.column = PKColumn;
-            initBaseIndex(table, id, indexName, new IndexColumn[]{indexColumn}, IndexType.createPrimaryKey(true, true));
+            indexColumn.sortType = SortOrder.ASCENDING;
+            initBaseIndex(table, id, indexName, new IndexColumn[]{indexColumn}, IndexType.createPrimaryKey(true, false));
     }
 
     @Override
@@ -135,13 +132,18 @@ public class H2TableIndex extends BaseIndex {
     @Override
     public Cursor find(Session session, SearchRow first, SearchRow last) {
         if (!isScanIndex) {
-            if (first == null || last == null) {
-                throw DbException.throwInternalError();
-            }
             Row remakefirst = new Row(null, 0);
-            remakefirst.setKey(first.getValue(0).getLong());
+            if(first != null) {
+                remakefirst.setKey(first.getValue(0).getLong());
+            } else {
+                remakefirst.setKey(1);
+            }
             Row remakeLast = new Row(null, 0);
-            remakeLast.setKey(last.getValue(0).getLong());
+            if(last != null) {
+                remakeLast.setKey(last.getValue(0).getLong());
+            } else {
+                remakeLast.setKey(getRowCount(session));
+            }
             first = remakefirst;
             last = remakeLast;
         }
@@ -150,7 +152,12 @@ public class H2TableIndex extends BaseIndex {
 
     @Override
     public boolean canScan() {
-        return isScanIndex;
+        return true;
+    }
+
+    @Override
+    public boolean canFindNext() {
+        return true;
     }
 
     @Override
@@ -161,7 +168,10 @@ public class H2TableIndex extends BaseIndex {
         for (Column column : columns) {
             int index = column.getColumnId();
             int mask = masks[index];
-            if ((mask & IndexCondition.EQUALITY) != IndexCondition.EQUALITY) {
+            if ((mask & IndexCondition.EQUALITY) != IndexCondition.EQUALITY &&
+                    (mask & IndexCondition.START) != IndexCondition.START &&
+                    (mask & IndexCondition.END) != IndexCondition.END &&
+                    (mask & IndexCondition.RANGE) != IndexCondition.RANGE) {
                 return Double.MAX_VALUE;
             }
         }
@@ -242,6 +252,12 @@ public class H2TableIndex extends BaseIndex {
         public SearchRow getSearchRow() {
             Row row =  new Row(new Value[tIndex.getTable().getColumns().length], Row.MEMORY_CALCULATE);
             row.setKey(rowIndex);
+            // Add indexed columns values
+            for(IndexColumn column : tIndex.getIndexColumns()) {
+                if(column.column.getColumnId() >= 0) {
+                    row.setValue(column.column.getColumnId(), ValueLong.get(rowIndex));
+                }
+            }
             return row;
         }
 
