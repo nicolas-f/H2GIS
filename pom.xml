@@ -61,7 +61,7 @@
         <!-- Dependency groupId and version -->
         <!-- Plugin for the test coverage check -->
         <cobertura-maven-plugin-groupId>org.codehaus.mojo</cobertura-maven-plugin-groupId>
-        <cobertura-maven-plugin-version>2.6</cobertura-maven-plugin-version>
+        <cobertura-maven-plugin-version>2.7</cobertura-maven-plugin-version>
 
         <commons-compress-groupId>org.apache.commons</commons-compress-groupId>
         <commons-compress-version>1.18</commons-compress-version>
@@ -144,6 +144,10 @@
         <repository>
             <id>osgi-maven-5.1-snapshot</id>
             <url>http://nexus.orbisgis.org/content/repositories/osgi-maven-5.1-snapshot</url>
+        </repository>
+        <repository>
+            <id>liferay</id>
+            <url>https://repository.liferay.com/nexus/content/repositories/public/</url>
         </repository>
     </repositories>
 
