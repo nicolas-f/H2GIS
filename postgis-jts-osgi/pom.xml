@@ -59,6 +59,11 @@
     <!-- Build Settings -->
     <build>
         <plugins>
+            <!-- Plugin for the compilation -->
+            <plugin>
+                <groupId>${maven-compiler-plugin-groupId}</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>

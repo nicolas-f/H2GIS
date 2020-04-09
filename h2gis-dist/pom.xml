@@ -73,6 +73,11 @@
     <!-- Build Settings -->
     <build>
         <plugins>
+            <!-- Plugin for the compilation -->
+            <plugin>
+                <groupId>${maven-compiler-plugin-groupId}</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
             <!-- Plugin for test running -->
             <plugin>
                 <groupId>${maven-surefire-plugin-groupId}</groupId>
