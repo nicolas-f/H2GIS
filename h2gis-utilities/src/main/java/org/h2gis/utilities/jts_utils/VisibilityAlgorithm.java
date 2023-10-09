@@ -145,6 +145,8 @@ public class VisibilityAlgorithm {
       env.expandToInclude(segment.getCoordinate(0));
       env.expandToInclude(segment.getCoordinate(1));
     }
+    env = new Envelope(0, 0, 0, 0);
+
     if (addEnvelope) {
       // Add bounding geom in envelope
       env.expandToInclude(new Coordinate(position.x - maxDistance, position.y - maxDistance));
